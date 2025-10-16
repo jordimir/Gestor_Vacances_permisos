@@ -32,8 +32,8 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
   };
 
   const handleDelete = (key: string) => {
-    if (key === 'VACANCES') {
-      alert("No es pot eliminar el tipus de permís 'Vacances'.");
+    if (key === 'VACANCES' || key === 'ASSUMPTES_PROPIS') {
+      alert(`No es pot eliminar el tipus de permís '${leaveTypes[key].label}'.`);
       return;
     }
     setTypes(prev => {
@@ -42,6 +42,8 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
         return newTypes;
     });
   };
+
+  const isCalculatedType = (key: string) => key === 'VACANCES' || key === 'ASSUMPTES_PROPIS';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -59,7 +61,7 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
             <span className="col-span-1">Vista</span>
             <span className="col-span-1"></span>
           </div>
-          {/* FIX: Add explicit types to destructuring assignment from Object.entries to fix type inference issue on `info`. */}
+          
           {Object.entries(types).map(([key, info]: [string, LeaveTypeInfo]) => (
             <div key={key} className="grid grid-cols-12 gap-3 items-center p-2 border rounded-md">
               <input value={info.label} onChange={e => handleUpdate(key, 'label', e.target.value)} className="col-span-3 border p-1 rounded-md" />
@@ -67,9 +69,8 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
                 type="number" 
                 value={info.total} 
                 onChange={e => handleUpdate(key, 'total', parseInt(e.target.value, 10) || 0)} 
-                className={`col-span-2 border p-1 rounded-md ${key === 'VACANCES' ? 'bg-gray-200 cursor-not-allowed' : ''}`}
-                readOnly={key === 'VACANCES'}
-                title={key === 'VACANCES' ? 'Calculat automàticament per antiguitat' : ''}
+                className="col-span-2 border p-1 rounded-md"
+                title={isCalculatedType(key) ? 'Valor inicial calculat per antiguitat. Es pot ajustar manualment.' : ''}
               />
               <select value={info.color} onChange={e => handleUpdate(key, 'color', e.target.value)} className="col-span-3 border p-1 rounded-md">
                 {colors.map(c => <option key={c} value={c}>{c.replace('bg-', '')}</option>)}

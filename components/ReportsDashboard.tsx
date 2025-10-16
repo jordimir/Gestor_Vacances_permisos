@@ -80,8 +80,8 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ filters, allUsers, 
   const totalApprovedDays = Object.values(statsByType).reduce((sum: number, count: number) => sum + count, 0);
   const consumptionPercentage = totalDaysAvailable > 0 ? Math.round((totalApprovedDays / totalDaysAvailable) * 100) : 0;
   
-  // FIX: Cast array values to numbers for sorting to resolve arithmetic operation error.
-  const mostUsedType = (Object.entries(statsByType) as [string, number][]).sort((a, b) => b[1] - a[1])[0];
+  // FIX: The values from Object.entries are not consistently inferred as numbers. Explicitly casting them to Number resolves the arithmetic operation error.
+  const mostUsedType = (Object.entries(statsByType) as [string, number][]).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
 
   return (
     <div className="h-full flex flex-col gap-6 printable-report">

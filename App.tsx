@@ -12,6 +12,7 @@ import ReportsDashboard from './components/ReportsDashboard';
 import FilterBar from './components/FilterBar';
 import { getHolidaysForYear } from './utils/holidays';
 import { calculateVacationDays } from './utils/vacationCalculator';
+import { calculatePersonalLeaveDays } from './utils/personalLeaveCalculator';
 import { UserProfile, UserData, LeaveDay, Holiday, LeaveDayStats, LeaveTypeInfo } from './types';
 import { DEFAULT_LEAVE_TYPES } from './constants';
 import { getYear, format, parseISO } from 'date-fns';
@@ -77,16 +78,22 @@ const App: React.FC = () => {
             if (userDataStr) {
                 userData = JSON.parse(userDataStr);
             } else {
+                // First time setup for this user: calculate defaults
                 userData = {
                     leaveDays: {},
                     leaveTypes: JSON.parse(JSON.stringify(DEFAULT_LEAVE_TYPES)),
                     workDays: [true, true, true, true, true, false, false]
                 };
-            }
+                 // Dynamic vacation calculation on creation
+                const vacationDays = calculateVacationDays(user.hireDate);
+                userData.leaveTypes['VACANCES'].total = vacationDays;
 
-            // Dynamic vacation calculation
-            const vacationDays = calculateVacationDays(user.hireDate);
-            userData.leaveTypes['VACANCES'].total = vacationDays;
+                // Dynamic personal leave calculation on creation
+                const personalLeaveDays = calculatePersonalLeaveDays(user.hireDate);
+                if (userData.leaveTypes['ASSUMPTES_PROPIS']) {
+                    userData.leaveTypes['ASSUMPTES_PROPIS'].total = personalLeaveDays;
+                }
+            }
             
             setActiveUser(user);
             setActiveUserData(userData);

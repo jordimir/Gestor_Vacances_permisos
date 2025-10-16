@@ -18,8 +18,8 @@ const TypePieChart: React.FC<TypePieChartProps> = ({ stats, leaveTypes }) => {
     const gradientParts: string[] = [];
     const legend: { label: string; color: string; value: number, percentage: string }[] = [];
 
-    // FIX: Cast `Object.entries` result to the correct tuple type to resolve downstream type errors.
-    const sortedStats = (Object.entries(stats) as [string, number][]).sort((a, b) => b[1] - a[1]);
+    // FIX: The values from Object.entries are not consistently inferred as numbers. Explicitly casting them to Number resolves the arithmetic operation error.
+    const sortedStats = (Object.entries(stats) as [string, number][]).sort((a, b) => Number(b[1]) - Number(a[1]));
 
     sortedStats.forEach(([type, count]) => {
       const info = leaveTypes[type];
