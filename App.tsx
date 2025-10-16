@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -256,12 +255,16 @@ const App: React.FC = () => {
 
   const leaveDayStats = useMemo(() => {
     const stats: Record<string, LeaveDayStats> = {};
+    const currentYear = getYear(currentDate);
 
     Object.keys(allLeaveTypes).forEach(type => {
         stats[type] = { requested: 0, approved: 0, remaining: 0, requestedDates: [], approvedDates: [] };
     });
 
     Object.entries(filteredLeaveDays).forEach(([date, days]: [string, DisplayLeaveDay[]]) => {
+        if (parseISO(date).getFullYear() !== currentYear) {
+            return; // Only count days in the current year
+        }
         days.forEach(day => {
             if (stats[day.type]) {
                 if (day.status === 'approved') {
@@ -281,7 +284,7 @@ const App: React.FC = () => {
     });
 
     return stats;
-  }, [filteredLeaveDays, allLeaveTypes]);
+  }, [filteredLeaveDays, allLeaveTypes, currentDate]);
   
   if (!activeUser) {
       return <UserSelection users={users} setUsers={saveUsersAndLocalStorage} onUserSelect={setActiveUserAndSave} />;
