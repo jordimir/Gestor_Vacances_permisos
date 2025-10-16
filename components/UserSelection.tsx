@@ -10,29 +10,57 @@ interface UserSelectionProps {
 const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSelect }) => {
   const [newUser, setNewUser] = useState({ name: '', dni: '', department: '', hireDate: '' });
   const [error, setError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!newUser.name || !newUser.dni || !newUser.department || !newUser.hireDate) {
       setError('Tots els camps són obligatoris.');
       return;
     }
-    const newProfile: UserProfile = {
-      id: `user-${Date.now()}`,
-      ...newUser,
-    };
-    const updatedUsers = [...users, newProfile];
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    setNewUser({ name: '', dni: '', department: '', hireDate: '' });
+    setIsCreating(true);
     setError('');
-    onUserSelect(newProfile.id);
+    
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      });
+
+      if (!response.ok) {
+        throw new Error('No s\'ha pogut crear l\'usuari');
+      }
+
+      const createdProfile: UserProfile = await response.json();
+      setUsers(prevUsers => [...prevUsers, createdProfile]);
+      setNewUser({ name: '', dni: '', department: '', hireDate: '' });
+      onUserSelect(createdProfile.id);
+
+    } catch (err) {
+      setError('Hi ha hagut un error en crear el perfil. Intenta-ho de nou.');
+      console.error(err);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
-      const updatedUsers = users.filter(u => u.id !== userId);
-      setUsers(updatedUsers);
-      localStorage.setItem('users', JSON.stringify(updatedUsers));
-      localStorage.removeItem(`userData_${userId}`);
+  const handleDeleteUser = async (userId: string) => {
+      if (!window.confirm("Estàs segur que vols eliminar aquest usuari i totes les seves dades? Aquesta acció no es pot desfer.")) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/users/${userId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            throw new Error('No s\'ha pogut eliminar l\'usuari');
+        }
+        setUsers(users.filter(u => u.id !== userId));
+      } catch (err) {
+        alert('Hi ha hagut un error en eliminar el perfil.');
+        console.error(err);
+      }
   };
 
   return (
@@ -73,6 +101,7 @@ const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSe
               value={newUser.name}
               onChange={e => setNewUser({ ...newUser, name: e.target.value })}
               className="p-2 border rounded-md"
+              disabled={isCreating}
             />
             <input
               type="text"
@@ -80,6 +109,7 @@ const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSe
               value={newUser.dni}
               onChange={e => setNewUser({ ...newUser, dni: e.target.value })}
               className="p-2 border rounded-md"
+              disabled={isCreating}
             />
             <input
               type="text"
@@ -87,6 +117,7 @@ const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSe
               value={newUser.department}
               onChange={e => setNewUser({ ...newUser, department: e.target.value })}
               className="p-2 border rounded-md"
+              disabled={isCreating}
             />
             <div>
                 <label className="block text-sm font-medium text-gray-500">Data d'Antiguitat</label>
@@ -95,15 +126,17 @@ const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSe
                   value={newUser.hireDate}
                   onChange={e => setNewUser({ ...newUser, hireDate: e.target.value })}
                   className="p-2 border rounded-md w-full"
+                  disabled={isCreating}
                 />
             </div>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             onClick={handleCreateUser}
-            className="w-full py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors"
+            disabled={isCreating}
+            className="w-full py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
           >
-            Crear i Entrar
+            {isCreating ? 'Creant...' : 'Crear i Entrar'}
           </button>
         </div>
       </div>

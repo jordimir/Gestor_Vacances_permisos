@@ -21,24 +21,11 @@ import { calculatePersonalLeaveDays } from './utils/personalLeaveCalculator';
 type ViewMode = 'calendar' | 'timeline' | 'yearGrid' | 'reports';
 
 const App: React.FC = () => {
-  const [users, setUsers] = useState<UserProfile[]>(() => {
-    const savedUsers = localStorage.getItem('users');
-    return savedUsers ? JSON.parse(savedUsers) : [];
-  });
-
-  const [activeUserId, setActiveUserId] = useState<string | null>(() => localStorage.getItem('activeUserId'));
-
-  const [allUserData, setAllUserData] = useState<Record<string, UserData>>(() => {
-    const data: Record<string, UserData> = {};
-    users.forEach(user => {
-      const savedData = localStorage.getItem(`userData_${user.id}`);
-      if (savedData) {
-        data[user.id] = JSON.parse(savedData);
-      }
-    });
-    return data;
-  });
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [activeUserId, setActiveUserId] = useState<string | null>(null);
+  const [allUserData, setAllUserData] = useState<Record<string, UserData>>({});
+  
   const [currentDate, setCurrentDate] = useState(new Date());
   const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
 
@@ -46,12 +33,51 @@ const App: React.FC = () => {
   const [isRequesting, setIsRequesting] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
 
+  const fetchAllData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [usersRes, userDataRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/usersdata')
+      ]);
+      if (!usersRes.ok || !userDataRes.ok) {
+        throw new Error('Failed to fetch data');
+      }
+      const usersData = await usersRes.json();
+      const allData = await userDataRes.json();
+      
+      setUsers(usersData);
+      setAllUserData(allData);
+
+      // Restore last active user if any
+      const lastActiveId = localStorage.getItem('activeUserId');
+      if (lastActiveId && usersData.some((u: UserProfile) => u.id === lastActiveId)) {
+        setActiveUserId(lastActiveId);
+      }
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
   const activeUser = useMemo(() => users.find(u => u.id === activeUserId), [users, activeUserId]);
 
   const activeUserData = useMemo(() => {
-    if (!activeUserId || !allUserData[activeUserId]) {
-        if (!activeUser) return undefined;
-        // Create initial data for a user
+    if (!activeUserId) return undefined;
+    
+    // Return existing data if available
+    if (allUserData[activeUserId]) {
+        return allUserData[activeUserId];
+    }
+    
+    // Create initial data for a newly created user that might not have data yet
+    if (activeUser) {
         const initialLeaveTypes = { ...DEFAULT_LEAVE_TYPES };
         initialLeaveTypes['VACANCES'].total = calculateVacationDays(activeUser.hireDate);
         initialLeaveTypes['ASSUMPTES_PROPIS'].total = calculatePersonalLeaveDays(activeUser.hireDate);
@@ -62,7 +88,7 @@ const App: React.FC = () => {
             workDays: [true, true, true, true, true, false, false],
         };
     }
-    return allUserData[activeUserId];
+    return undefined;
   }, [activeUserId, allUserData, activeUser]);
   
   // Load holidays for the current year
@@ -71,7 +97,7 @@ const App: React.FC = () => {
     setHolidays(getHolidaysForYear(year));
   }, [currentDate]);
 
-  // Save active user ID to localStorage
+  // Save active user ID to localStorage for session persistence
   useEffect(() => {
     if (activeUserId) {
       localStorage.setItem('activeUserId', activeUserId);
@@ -79,13 +105,6 @@ const App: React.FC = () => {
       localStorage.removeItem('activeUserId');
     }
   }, [activeUserId]);
-
-  // Save individual user data when it changes
-  useEffect(() => {
-    if (activeUserId && activeUserData) {
-      localStorage.setItem(`userData_${activeUserId}`, JSON.stringify(activeUserData));
-    }
-  }, [activeUserId, activeUserData]);
 
   const handleUserSelect = (userId: string) => {
     setActiveUserId(userId);
@@ -95,12 +114,28 @@ const App: React.FC = () => {
       setActiveUserId(null);
   }
 
-  const updateActiveUserData = useCallback((updater: (prev: UserData) => UserData) => {
-    if (!activeUserId) return;
+  const updateActiveUserData = useCallback(async (updater: (prev: UserData) => UserData) => {
+    if (!activeUserId || !activeUserData) return;
+
+    const updatedUserData = updater(activeUserData);
+    
+    // Optimistic update for better UX
     setAllUserData(prevAll => ({
       ...prevAll,
-      [activeUserId]: updater(prevAll[activeUserId] || activeUserData!),
+      [activeUserId]: updatedUserData,
     }));
+
+    try {
+      const response = await fetch(`/api/users/${activeUserId}/data`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUserData),
+      });
+      if (!response.ok) throw new Error('Failed to save data to server');
+    } catch (error) {
+      console.error("Error saving user data, consider reverting state:", error);
+      // Here you could add logic to revert the optimistic update on error
+    }
   }, [activeUserId, activeUserData]);
 
   const handleSetLeaveDay = (date: string, type: string | null) => {
@@ -158,6 +193,9 @@ const App: React.FC = () => {
     return result;
   }, [activeUserData, activeUser]);
 
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">Carregant dades...</div>;
+  }
 
   if (!activeUser || !activeUserData) {
     return <UserSelection users={users} setUsers={setUsers} onUserSelect={handleUserSelect} />;
@@ -222,7 +260,6 @@ const App: React.FC = () => {
               <ReportsDashboard
                 allUsers={users}
                 allLeaveData={Object.entries(allUserData).reduce((acc, [userId, data]) => {
-                  // FIX: Add a type assertion to `data` to resolve a TypeScript error where its type is inferred as `unknown`.
                   acc[userId] = (data as UserData).leaveDays;
                   return acc;
                 }, {} as Record<string, Record<string, LeaveDay>>)}
