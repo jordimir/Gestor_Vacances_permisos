@@ -36,16 +36,17 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
   const dateString = format(day, 'yyyy-MM-dd');
   const holidayInfo = HOLIDAYS_2025[dateString];
   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+  const isNonWorkDay = isWeekend || !!holidayInfo;
 
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'LEAVE_TYPE',
-    canDrop: () => !leaveDay,
+    canDrop: () => !leaveDay && !isNonWorkDay,
     drop: (item: { type: string }) => onSetLeaveDay(dateString, item.type),
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
       canDrop: !!monitor.canDrop(),
     }),
-  }), [dateString, onSetLeaveDay, leaveDay]);
+  }), [dateString, onSetLeaveDay, leaveDay, isNonWorkDay]);
 
   const leaveInfo = leaveDay ? leaveTypes[leaveDay.type] : null;
 
@@ -59,18 +60,25 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
   };
   const holidayColor = holidayInfo ? holidayColorClasses[holidayInfo.type] : '';
 
+  let baseBgClass = 'bg-white';
+  if (!isCurrentMonth) {
+    baseBgClass = 'bg-gray-50 text-gray-400';
+  } else if (isNonWorkDay && !leaveDay) {
+    baseBgClass = 'bg-gray-100';
+  }
+
   return (
     <div
       ref={drop}
       className={`relative h-28 border flex flex-col p-2 transition-all duration-200
-        ${isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
+        ${baseBgClass}
         ${isOver && canDrop ? 'bg-blue-100' : ''}
         ${isOver && !canDrop ? 'bg-red-200 cursor-not-allowed' : ''}
         ${leaveDay ? borderStyle + ' border-2' : 'border-gray-200'}
         ${isSameDay(day, new Date()) && !leaveDay ? 'border-2 border-blue-500' : ''}
       `}
     >
-      <time dateTime={dateString} className={`font-medium ${holidayInfo || isWeekend ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
+      <time dateTime={dateString} className={`font-medium ${isNonWorkDay ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
       {holidayInfo && <span className={`text-xs ${holidayColor} mt-1 truncate font-semibold`}>{holidayInfo.name}</span>}
       
       {leaveInfo && (
