@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import RequestModal from './components/RequestModal';
 import ManageLeaveTypesModal from './components/ManageLeaveTypesModal';
 import Timeline from './components/Timeline';
+import YearGrid from './components/YearGrid'; // Import the new component
 import { LeaveDay, LeaveTypeInfo, Holiday } from './types';
 import { DEFAULT_LEAVE_TYPES } from './constants';
 import { getHolidaysForYear } from './utils/holidays';
@@ -35,7 +36,7 @@ const App: React.FC = () => {
     return savedTypes ? JSON.parse(savedTypes) : DEFAULT_LEAVE_TYPES;
   });
 
-  const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'timeline' | 'yearGrid'>('calendar');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
 
@@ -146,6 +147,12 @@ const App: React.FC = () => {
               >
                   Línia de Temps Anual
               </button>
+              <button 
+                  onClick={() => setViewMode('yearGrid')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'yearGrid' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                  Vista Anual (Graella)
+              </button>
             </div>
             {viewMode === 'calendar' ? (
               <Calendar
@@ -157,8 +164,16 @@ const App: React.FC = () => {
                 leaveTypes={leaveTypes}
                 holidays={holidays}
               />
-            ) : (
+            ) : viewMode === 'timeline' ? (
               <Timeline
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                leaveDays={leaveDays}
+                leaveTypes={leaveTypes}
+                holidays={holidays}
+              />
+            ) : (
+              <YearGrid
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
                 leaveDays={leaveDays}
