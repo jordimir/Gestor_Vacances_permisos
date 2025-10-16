@@ -10,16 +10,15 @@ interface TypePieChartProps {
 
 const TypePieChart: React.FC<TypePieChartProps> = ({ stats, leaveTypes }) => {
   const chartData = useMemo(() => {
-    // FIX: Add explicit types to reducer arguments to handle 'unknown' type inference.
-    const total = Object.values(stats).reduce((sum: number, count: number) => sum + count, 0);
+    const total = (Object.values(stats) as number[]).reduce((sum, count) => sum + count, 0);
     if (total === 0) return { gradient: 'bg-gray-200', legend: [] };
 
     let cumulativePercentage = 0;
     const gradientParts: string[] = [];
     const legend: { label: string; color: string; value: number, percentage: string }[] = [];
 
-    // FIX: The values from Object.entries are not consistently inferred as numbers. Explicitly casting them to Number resolves the arithmetic operation error.
-    const sortedStats = (Object.entries(stats) as [string, number][]).sort((a, b) => Number(b[1]) - Number(a[1]));
+    // FIX: Refactor sorting to use destructuring, ensuring correct type inference for numeric comparison. This resolves the arithmetic operation error.
+    const sortedStats = (Object.entries(stats) as [string, number][]).sort(([, countA], [, countB]) => countB - countA);
 
     sortedStats.forEach(([type, count]) => {
       const info = leaveTypes[type];

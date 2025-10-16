@@ -16,7 +16,6 @@ const YearlyHeatmap: React.FC<YearlyHeatmapProps> = ({ year, stats }) => {
       return day.getFullYear() === year ? day : null;
   }).filter(Boolean) as Date[];
 
-  // FIX: Cast `Object.values` result to `number[]` to satisfy `Math.max`'s parameter types.
   const maxCount = Math.max(...(Object.values(stats) as number[]), 0);
 
   const getColor = (count: number) => {

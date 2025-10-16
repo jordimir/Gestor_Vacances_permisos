@@ -15,7 +15,6 @@ const UsersBarChart: React.FC<UsersBarChartProps> = ({ stats, users }) => {
       return acc;
     }, {} as Record<string, string>);
 
-    // FIX: Cast `Object.entries` result to the correct tuple type to resolve downstream type errors.
     return (Object.entries(stats) as [string, number][])
       .map(([userId, count]) => ({
         name: userMap[userId] || 'Desconegut',

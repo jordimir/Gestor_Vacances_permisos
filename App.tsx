@@ -1,233 +1,253 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { getYear } from 'date-fns';
+
 import Calendar from './components/Calendar';
 import Sidebar from './components/Sidebar';
-import UserSelection from './components/UserSelection';
 import ManageLeaveTypesModal from './components/ManageLeaveTypesModal';
 import RequestModal from './components/RequestModal';
+import UserSelection from './components/UserSelection';
+import ReportsDashboard from './components/ReportsDashboard';
 import Timeline from './components/Timeline';
 import YearGrid from './components/YearGrid';
-import ReportsDashboard from './components/ReportsDashboard';
-import FilterBar from './components/FilterBar';
+
+import { UserProfile, UserData, LeaveDay, LeaveTypeInfo, Holiday, LeaveDayStats } from './types';
+import { DEFAULT_LEAVE_TYPES } from './constants';
 import { getHolidaysForYear } from './utils/holidays';
 import { calculateVacationDays } from './utils/vacationCalculator';
 import { calculatePersonalLeaveDays } from './utils/personalLeaveCalculator';
-import { UserProfile, UserData, LeaveDay, Holiday, LeaveDayStats, LeaveTypeInfo } from './types';
-import { DEFAULT_LEAVE_TYPES } from './constants';
-import { getYear, format, parseISO } from 'date-fns';
 
 type ViewMode = 'calendar' | 'timeline' | 'yearGrid' | 'reports';
 
 const App: React.FC = () => {
-    const [users, setUsers] = useState<UserProfile[]>([]);
-    const [activeUser, setActiveUser] = useState<UserProfile | null>(null);
-    const [activeUserData, setActiveUserData] = useState<UserData | null>(null);
-    
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
-    
-    const [isManageModalOpen, setManageModalOpen] = useState(false);
-    const [isRequestModalOpen, setRequestModalOpen] = useState(false);
-    
-    const [viewMode, setViewMode] = useState<ViewMode>('calendar');
-    const [filters, setFilters] = useState<{ selectedTypes: string[]; selectedUserIds: string[] }>({
-        selectedTypes: [],
-        selectedUserIds: [],
+  const [users, setUsers] = useState<UserProfile[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : [];
+  });
+
+  const [activeUserId, setActiveUserId] = useState<string | null>(() => localStorage.getItem('activeUserId'));
+
+  const [allUserData, setAllUserData] = useState<Record<string, UserData>>(() => {
+    const data: Record<string, UserData> = {};
+    users.forEach(user => {
+      const savedData = localStorage.getItem(`userData_${user.id}`);
+      if (savedData) {
+        data[user.id] = JSON.parse(savedData);
+      }
     });
+    return data;
+  });
 
-    // Carrega inicial d'usuaris i dades
-    useEffect(() => {
-        const savedUsers = localStorage.getItem('users');
-        const savedActiveUserId = localStorage.getItem('activeUserId');
-        
-        let initialUsers = savedUsers ? JSON.parse(savedUsers) : [];
-        if (initialUsers.length === 0) {
-            const defaultUser: UserProfile = { id: 'user-jordi-mir', name: 'Jordi Mir Gordils', dni: '43671673D', department: 'Serveis Tècnics', hireDate: '1988-01-01' };
-            initialUsers.push(defaultUser);
-            setUsers(initialUsers);
-            localStorage.setItem('users', JSON.stringify(initialUsers));
-        } else {
-            setUsers(initialUsers);
-        }
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
 
-        if (savedActiveUserId) {
-            const userToActivate = initialUsers.find((u: UserProfile) => u.id === savedActiveUserId);
-            if (userToActivate) {
-                handleUserChange(userToActivate.id);
-            }
-        }
-    }, []);
+  const [isManagingTypes, setIsManagingTypes] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
 
-    useEffect(() => {
-        setHolidays(getHolidaysForYear(getYear(currentDate)));
-    }, [currentDate]);
+  const activeUser = useMemo(() => users.find(u => u.id === activeUserId), [users, activeUserId]);
+
+  const activeUserData = useMemo(() => {
+    if (!activeUserId || !allUserData[activeUserId]) {
+        if (!activeUser) return undefined;
+        // Create initial data for a user
+        const initialLeaveTypes = { ...DEFAULT_LEAVE_TYPES };
+        initialLeaveTypes['VACANCES'].total = calculateVacationDays(activeUser.hireDate);
+        initialLeaveTypes['ASSUMPTES_PROPIS'].total = calculatePersonalLeaveDays(activeUser.hireDate);
+
+        return {
+            leaveDays: {},
+            leaveTypes: initialLeaveTypes,
+            workDays: [true, true, true, true, true, false, false],
+        };
+    }
+    return allUserData[activeUserId];
+  }, [activeUserId, allUserData, activeUser]);
+  
+  // Load holidays for the current year
+  useEffect(() => {
+    const year = getYear(currentDate);
+    setHolidays(getHolidaysForYear(year));
+  }, [currentDate]);
+
+  // Save active user ID to localStorage
+  useEffect(() => {
+    if (activeUserId) {
+      localStorage.setItem('activeUserId', activeUserId);
+    } else {
+      localStorage.removeItem('activeUserId');
+    }
+  }, [activeUserId]);
+
+  // Save individual user data when it changes
+  useEffect(() => {
+    if (activeUserId && activeUserData) {
+      localStorage.setItem(`userData_${activeUserId}`, JSON.stringify(activeUserData));
+    }
+  }, [activeUserId, activeUserData]);
+
+  const handleUserSelect = (userId: string) => {
+    setActiveUserId(userId);
+  };
+  
+  const handleUserChange = () => {
+      setActiveUserId(null);
+  }
+
+  const updateActiveUserData = useCallback((updater: (prev: UserData) => UserData) => {
+    if (!activeUserId) return;
+    setAllUserData(prevAll => ({
+      ...prevAll,
+      [activeUserId]: updater(prevAll[activeUserId] || activeUserData!),
+    }));
+  }, [activeUserId, activeUserData]);
+
+  const handleSetLeaveDay = (date: string, type: string | null) => {
+    updateActiveUserData(prev => {
+      const newLeaveDays = { ...prev.leaveDays };
+      if (type) {
+        newLeaveDays[date] = { type, status: 'requested' };
+      } else {
+        delete newLeaveDays[date];
+      }
+      return { ...prev, leaveDays: newLeaveDays };
+    });
+  };
+
+  const handleApproveDay = (date: string) => {
+      updateActiveUserData(prev => {
+          const newLeaveDays = { ...prev.leaveDays };
+          if (newLeaveDays[date]) {
+              newLeaveDays[date].status = 'approved';
+          }
+          return { ...prev, leaveDays: newLeaveDays };
+      });
+  };
+
+  const handleWorkDaysChange = (newWorkDays: boolean[]) => {
+    updateActiveUserData(prev => ({ ...prev, workDays: newWorkDays }));
+  };
+
+  const handleSaveLeaveTypes = (updatedLeaveTypes: Record<string, LeaveTypeInfo>) => {
+    updateActiveUserData(prev => ({ ...prev, leaveTypes: updatedLeaveTypes }));
+    setIsManagingTypes(false);
+  };
+  
+  const stats: Record<string, LeaveDayStats> = useMemo(() => {
+    if (!activeUserData) return {};
+    const result: Record<string, LeaveDayStats> = {};
     
-    const handleUserChange = (userId: string | null) => {
-        if (userId === null) {
-            setActiveUser(null);
-            setActiveUserData(null);
-            localStorage.removeItem('activeUserId');
-            return;
-        }
-
-        const user = users.find(u => u.id === userId);
-        if (user) {
-            const userDataStr = localStorage.getItem(`userData_${userId}`);
-            let userData: UserData;
-            if (userDataStr) {
-                userData = JSON.parse(userDataStr);
-            } else {
-                // First time setup for this user: calculate defaults
-                userData = {
-                    leaveDays: {},
-                    leaveTypes: JSON.parse(JSON.stringify(DEFAULT_LEAVE_TYPES)),
-                    workDays: [true, true, true, true, true, false, false]
-                };
-                 // Dynamic vacation calculation on creation
-                const vacationDays = calculateVacationDays(user.hireDate);
-                userData.leaveTypes['VACANCES'].total = vacationDays;
-
-                // Dynamic personal leave calculation on creation
-                const personalLeaveDays = calculatePersonalLeaveDays(user.hireDate);
-                if (userData.leaveTypes['ASSUMPTES_PROPIS']) {
-                    userData.leaveTypes['ASSUMPTES_PROPIS'].total = personalLeaveDays;
-                }
-            }
-            
-            setActiveUser(user);
-            setActiveUserData(userData);
-            localStorage.setItem('activeUserId', userId);
-            localStorage.setItem(`userData_${userId}`, JSON.stringify(userData));
-        }
-    };
-    
-    const saveData = (newUserData: UserData) => {
-        if (!activeUser) return;
-        setActiveUserData(newUserData);
-        localStorage.setItem(`userData_${activeUser.id}`, JSON.stringify(newUserData));
-    };
-
-    const onSetLeaveDay = useCallback((date: string, type: string | null) => {
-        if (!activeUserData) return;
-        const newLeaveDays = { ...activeUserData.leaveDays };
-        if (type === null) {
-            delete newLeaveDays[date];
-        } else {
-            newLeaveDays[date] = { type, status: 'requested' };
-        }
-        saveData({ ...activeUserData, leaveDays: newLeaveDays });
-    }, [activeUserData]);
-
-    const onApproveDay = useCallback((date: string) => {
-        if (!activeUserData) return;
-        const newLeaveDays = { ...activeUserData.leaveDays };
-        if (newLeaveDays[date]) {
-            newLeaveDays[date].status = 'approved';
-        }
-        saveData({ ...activeUserData, leaveDays: newLeaveDays });
-    }, [activeUserData]);
-
-    const onSaveLeaveTypes = (updatedLeaveTypes: Record<string, LeaveTypeInfo>) => {
-        if (!activeUserData) return;
-        saveData({ ...activeUserData, leaveTypes: updatedLeaveTypes });
-        setManageModalOpen(false);
-    };
-
-    const onWorkDaysChange = (newWorkDays: boolean[]) => {
-        if (!activeUserData) return;
-        saveData({ ...activeUserData, workDays: newWorkDays });
-    };
-
-    const statsForSidebar = useMemo((): Record<string, LeaveDayStats> => {
-        if (!activeUser || !activeUserData) return {};
-
-        const result: Record<string, LeaveDayStats> = {};
-        Object.keys(activeUserData.leaveTypes).forEach(key => {
-            result[key] = { approved: 0, requested: 0, approvedDates: [], requestedDates: [] };
-        });
-
-        Object.entries(activeUserData.leaveDays).forEach(([date, leaveDay]: [string, LeaveDay]) => {
-             const stat = result[leaveDay.type];
-             if (!stat || getYear(parseISO(date)) !== getYear(currentDate)) return;
-            
-             // Regla de negoci: no comptar vacances dels primers 15 dies de gener
-            const isVacationInEarlyJanuary = leaveDay.type === 'VACANCES' && parseISO(date).getMonth() === 0 && parseISO(date).getDate() <= 15;
-            if (isVacationInEarlyJanuary) return;
-
-             if (leaveDay.status === 'approved') {
-                 stat.approved++;
-                 stat.approvedDates.push({ date, user: activeUser });
-             } else {
-                 stat.requested++;
-                 stat.requestedDates.push({ date, user: activeUser });
-             }
-        });
-        return result;
-    }, [activeUser, activeUserData, currentDate]);
-
-    // Per a la vista d'informes, necessitem les dades de tots
-    const allUsersDataForReports = useMemo(() => {
-        const data: Record<string, UserData> = {};
-        users.forEach(user => {
-            const userDataStr = localStorage.getItem(`userData_${user.id}`);
-            if (userDataStr) {
-                data[user.id] = JSON.parse(userDataStr);
-            }
-        });
-        return data;
-    }, [users]);
-    
-    if (!activeUser || !activeUserData) {
-        return <UserSelection users={users} setUsers={setUsers} onUserSelect={handleUserChange} />;
+    for (const typeKey in activeUserData.leaveTypes) {
+        result[typeKey] = { approved: 0, requested: 0, approvedDates: [], requestedDates: [] };
     }
 
-    return (
-        <DndProvider backend={HTML5Backend}>
-            <div className="flex h-screen bg-gray-100 font-sans">
-                <Sidebar 
-                    stats={statsForSidebar} 
-                    leaveTypes={activeUserData.leaveTypes} 
-                    workDays={activeUserData.workDays}
-                    onWorkDaysChange={onWorkDaysChange}
-                    onManageClick={() => setManageModalOpen(true)}
-                    onUserChange={() => handleUserChange(null)}
-                    activeUser={activeUser}
-                />
+    for (const date in activeUserData.leaveDays) {
+        const leaveDay = activeUserData.leaveDays[date];
+        if (!result[leaveDay.type]) {
+            result[leaveDay.type] = { approved: 0, requested: 0, approvedDates: [], requestedDates: [] };
+        }
+        if (leaveDay.status === 'approved') {
+            result[leaveDay.type].approved++;
+            if (activeUser) result[leaveDay.type].approvedDates.push({date, user: activeUser});
+        } else {
+            result[leaveDay.type].requested++;
+            if (activeUser) result[leaveDay.type].requestedDates.push({date, user: activeUser});
+        }
+    }
+    return result;
+  }, [activeUserData, activeUser]);
 
-                <main className="flex-1 flex flex-col p-4 overflow-y-auto">
-                    <header className="flex justify-between items-center mb-4 flex-shrink-0 no-print">
-                         <div className="flex items-center gap-2">
-                            <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Calendari</button>
-                            <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'timeline' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Timeline</button>
-                            <button onClick={() => setViewMode('yearGrid')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'yearGrid' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Any</button>
-                            <button onClick={() => setViewMode('reports')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'reports' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Informes</button>
-                        </div>
-                        <div className="flex items-center gap-4">
-                           {viewMode === 'reports' && (
-                                <FilterBar 
-                                    allUsers={users} 
-                                    allLeaveTypes={activeUserData.leaveTypes} 
-                                    filters={filters} 
-                                    onFilterChange={setFilters} 
-                                />
-                            )}
-                            <button onClick={() => setRequestModalOpen(true)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Generar Sol·licitud</button>
-                        </div>
-                    </header>
-                    <div className="flex-1 overflow-auto">
-                         {viewMode === 'calendar' && <Calendar currentDate={currentDate} setCurrentDate={setCurrentDate} leaveDays={activeUserData.leaveDays} onSetLeaveDay={onSetLeaveDay} onApproveDay={onApproveDay} leaveTypes={activeUserData.leaveTypes} holidays={holidays} workDays={activeUserData.workDays}/>}
-                         {viewMode === 'timeline' && <Timeline currentDate={currentDate} setCurrentDate={setCurrentDate} leaveDays={{[activeUser.id]: activeUserData.leaveDays}} leaveTypes={activeUserData.leaveTypes} holidays={holidays} users={[activeUser]}/>}
-                         {viewMode === 'yearGrid' && <YearGrid currentDate={currentDate} setCurrentDate={setCurrentDate} leaveDays={{[activeUser.id]: activeUserData.leaveDays}} leaveTypes={activeUserData.leaveTypes} holidays={holidays} users={[activeUser]}/>}
-                         {viewMode === 'reports' && <ReportsDashboard filters={filters} allUsers={users} allUsersData={allUsersDataForReports} allLeaveTypes={activeUserData.leaveTypes} year={getYear(currentDate)} />}
-                    </div>
-                </main>
 
-                {isManageModalOpen && <ManageLeaveTypesModal leaveTypes={activeUserData.leaveTypes} onSave={onSaveLeaveTypes} onClose={() => setManageModalOpen(false)} />}
-                {isRequestModalOpen && <RequestModal user={activeUser} leaveDays={activeUserData.leaveDays} leaveTypes={activeUserData.leaveTypes} onClose={() => setRequestModalOpen(false)} />}
-            </div>
-        </DndProvider>
-    );
+  if (!activeUser || !activeUserData) {
+    return <UserSelection users={users} setUsers={setUsers} onUserSelect={handleUserSelect} />;
+  }
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className="flex h-screen bg-gray-100 font-sans">
+        <Sidebar 
+          stats={stats} 
+          leaveTypes={activeUserData.leaveTypes}
+          workDays={activeUserData.workDays}
+          onWorkDaysChange={handleWorkDaysChange}
+          onManageClick={() => setIsManagingTypes(true)}
+          onUserChange={handleUserChange}
+          activeUser={activeUser}
+        />
+        <main className="flex-1 flex flex-col p-4 overflow-auto">
+            <header className="flex justify-between items-center mb-4 no-print">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setViewMode('calendar')} className={`px-3 py-1.5 text-sm rounded-md ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Calendari Mensual</button>
+                    <button onClick={() => setViewMode('yearGrid')} className={`px-3 py-1.5 text-sm rounded-md ${viewMode === 'yearGrid' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Vista Anual</button>
+                    <button onClick={() => setViewMode('timeline')} className={`px-3 py-1.5 text-sm rounded-md ${viewMode === 'timeline' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Línia Temporal</button>
+                    <button onClick={() => setViewMode('reports')} className={`px-3 py-1.5 text-sm rounded-md ${viewMode === 'reports' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Informes</button>
+                </div>
+                 <button onClick={() => setIsRequesting(true)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Generar Sol·licitud</button>
+            </header>
+            
+            {viewMode === 'calendar' && (
+              <Calendar
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                leaveDays={activeUserData.leaveDays}
+                onSetLeaveDay={handleSetLeaveDay}
+                onApproveDay={handleApproveDay}
+                leaveTypes={activeUserData.leaveTypes}
+                holidays={holidays}
+                workDays={activeUserData.workDays}
+              />
+            )}
+            {viewMode === 'yearGrid' && (
+              <YearGrid 
+                currentDate={currentDate} 
+                setCurrentDate={setCurrentDate} 
+                leaveDays={{[activeUser.id]: activeUserData.leaveDays}}
+                leaveTypes={activeUserData.leaveTypes}
+                holidays={holidays}
+                users={[activeUser]}
+              />
+            )}
+            {viewMode === 'timeline' && (
+              <Timeline 
+                currentDate={currentDate} 
+                setCurrentDate={setCurrentDate} 
+                leaveDays={{[activeUser.id]: activeUserData.leaveDays}}
+                leaveTypes={activeUserData.leaveTypes}
+                holidays={holidays}
+                users={[activeUser]}
+              />
+            )}
+            {viewMode === 'reports' && (
+              <ReportsDashboard
+                allUsers={users}
+                allLeaveData={Object.entries(allUserData).reduce((acc, [userId, data]) => {
+                  acc[userId] = data.leaveDays;
+                  return acc;
+                }, {} as Record<string, Record<string, LeaveDay>>)}
+                leaveTypes={activeUserData.leaveTypes} // Assuming global leave types for now
+                year={getYear(currentDate)}
+              />
+            )}
+        </main>
+      </div>
+      {isManagingTypes && (
+        <ManageLeaveTypesModal
+          leaveTypes={activeUserData.leaveTypes}
+          onSave={handleSaveLeaveTypes}
+          onClose={() => setIsManagingTypes(false)}
+        />
+      )}
+      {isRequesting && (
+        <RequestModal
+            user={activeUser}
+            leaveDays={activeUserData.leaveDays}
+            leaveTypes={activeUserData.leaveTypes}
+            onClose={() => setIsRequesting(false)}
+        />
+      )}
+    </DndProvider>
+  );
 };
 
 export default App;

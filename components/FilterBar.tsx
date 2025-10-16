@@ -18,7 +18,6 @@ const DropdownMultiSelect: React.FC<{
     const [isOpen, setIsOpen] = useState(false);
 
     const groupedOptions = useMemo(() => {
-        // FIX: Correctly type `groups` to match the `options` elements, which include an optional `group` property.
         const groups: Record<string, { value: string; label: string; group?: string }[]> = {};
         options.forEach(opt => {
             const groupName = opt.group || 'general';
