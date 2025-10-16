@@ -1,14 +1,15 @@
 import React from 'react';
-import { format, getDaysInMonth, getYear, addYears, subYears } from 'date-fns';
+import { format, getDaysInMonth, getYear, addYears, subYears, getDay } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveTypeInfo, Holiday, DisplayLeaveDay } from '../types';
+import { LeaveTypeInfo, Holiday, LeaveDay, UserProfile } from '../types';
 
 interface TimelineProps {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
-  leaveDays: Record<string, DisplayLeaveDay[]>;
+  leaveDays: Record<string, Record<string, LeaveDay>>;
   leaveTypes: Record<string, LeaveTypeInfo>;
   holidays: Record<string, Holiday>;
+  users: UserProfile[];
 }
 
 const TimelineHeader: React.FC<{ year: number; onPrevYear: () => void; onNextYear: () => void; }> = ({ year, onPrevYear, onNextYear }) => (
@@ -23,27 +24,28 @@ const TimelineHeader: React.FC<{ year: number; onPrevYear: () => void; onNextYea
     </div>
 );
 
-const Timeline: React.FC<TimelineProps> = ({ currentDate, setCurrentDate, leaveDays, leaveTypes, holidays }) => {
+const Timeline: React.FC<TimelineProps> = ({ currentDate, setCurrentDate, leaveDays, leaveTypes, holidays, users }) => {
   const year = getYear(currentDate);
   const months = Array.from({ length: 12 }, (_, i) => i);
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   const handlePrevYear = () => setCurrentDate(subYears(currentDate, 1));
   const handleNextYear = () => setCurrentDate(addYears(currentDate, 1));
+  
+  const user = users[0]; // For single-user view
+  const userLeaveDays = leaveDays[user.id] || {};
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div className="overflow-x-auto relative" style={{maxHeight: 'calc(100vh - 250px)'}}>
+      <div className="overflow-x-auto relative" style={{maxHeight: 'calc(100vh - 200px)'}}>
         <TimelineHeader year={year} onPrevYear={handlePrevYear} onNextYear={handleNextYear} />
         
         <div className="grid" style={{ gridTemplateColumns: '5rem repeat(31, minmax(2rem, 1fr))' }}>
-          {/* Day Header */}
           <div className="font-semibold text-gray-500 sticky top-16 bg-white z-20 border-b-2 border-gray-200"></div>
           {days.map(day => (
             <div key={day} className="font-semibold text-gray-500 p-1 text-center text-xs sticky top-16 bg-white z-20 border-b-2 border-gray-200">{day}</div>
           ))}
           
-          {/* Month Rows */}
           {months.map(monthIndex => {
             const monthName = format(new Date(year, monthIndex), 'MMMM', { locale: ca });
             const daysInMonth = getDaysInMonth(new Date(year, monthIndex));
@@ -58,26 +60,18 @@ const Timeline: React.FC<TimelineProps> = ({ currentDate, setCurrentDate, leaveD
                   
                   const date = new Date(year, monthIndex, day);
                   const dateString = format(date, 'yyyy-MM-dd');
-                  const dayOfWeek = date.getDay();
+                  const dayOfWeek = getDay(date);
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                   const holidayInfo = holidays[dateString];
-                  const leaveDaysOnDay = leaveDays[dateString];
+                  const leaveDay = userLeaveDays[dateString];
 
                   let cellClass = 'h-8 border-t border-l border-gray-200';
                   let tooltip = '';
-                  let cellStyle: React.CSSProperties = {};
 
-                  if (leaveDaysOnDay && leaveDaysOnDay.length > 0) {
-                      if (leaveDaysOnDay.length === 1) {
-                          const leaveInfo = leaveTypes[leaveDaysOnDay[0].type];
-                          cellClass += ` ${leaveInfo?.color || 'bg-gray-400'}`;
-                          tooltip = `${leaveDaysOnDay[0].user.name}: ${leaveInfo?.label}`;
-                      } else {
-                          // Multiple users, create a striped background
-                          const colors = leaveDaysOnDay.map(ld => leaveTypes[ld.type]?.color).map(c => `var(--tw-color-${c.split('-')[1]}-${c.split('-')[2]})`);
-                          cellStyle.background = `repeating-linear-gradient(45deg, ${colors[0]}, ${colors[0]} 10px, ${colors[1] || '#E5E7EB'} 10px, ${colors[1] || '#E5E7EB'} 20px)`;
-                          tooltip = leaveDaysOnDay.map(ld => `${ld.user.name}: ${leaveTypes[ld.type]?.label}`).join('\n');
-                      }
+                  if (leaveDay) {
+                      const leaveInfo = leaveTypes[leaveDay.type];
+                      cellClass += ` ${leaveInfo?.color || 'bg-gray-400'}`;
+                      tooltip = leaveInfo?.label || 'Permís';
                   } else if (holidayInfo) {
                       cellClass += ' bg-yellow-200';
                       tooltip = holidayInfo.name;
@@ -87,9 +81,7 @@ const Timeline: React.FC<TimelineProps> = ({ currentDate, setCurrentDate, leaveD
                       cellClass += ' bg-white'
                   }
 
-                  return (
-                    <div key={day} className={cellClass} title={tooltip} style={cellStyle}></div>
-                  );
+                  return <div key={day} className={cellClass} title={tooltip}></div>;
                 })}
               </React.Fragment>
             );

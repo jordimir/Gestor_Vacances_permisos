@@ -1,14 +1,15 @@
 import React from 'react';
 import { format, getYear, getDaysInMonth, startOfMonth, getDay, addYears, subYears } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveTypeInfo, Holiday, DisplayLeaveDay } from '../types';
+import { LeaveTypeInfo, Holiday, LeaveDay, UserProfile } from '../types';
 
 interface YearGridProps {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
-  leaveDays: Record<string, DisplayLeaveDay[]>;
+  leaveDays: Record<string, Record<string, LeaveDay>>;
   leaveTypes: Record<string, LeaveTypeInfo>;
   holidays: Record<string, Holiday>;
+  users: UserProfile[];
 }
 
 const YearGridHeader: React.FC<{ year: number; onPrevYear: () => void; onNextYear: () => void; }> = ({ year, onPrevYear, onNextYear }) => (
@@ -23,12 +24,12 @@ const YearGridHeader: React.FC<{ year: number; onPrevYear: () => void; onNextYea
     </div>
 );
 
-const MiniCalendar: React.FC<{ year: number; month: number; leaveDays: Record<string, DisplayLeaveDay[]>; leaveTypes: Record<string, LeaveTypeInfo>; holidays: Record<string, Holiday>; }> = ({ year, month, leaveDays, leaveTypes, holidays }) => {
+const MiniCalendar: React.FC<{ year: number; month: number; userLeaveDays: Record<string, LeaveDay>; leaveTypes: Record<string, LeaveTypeInfo>; holidays: Record<string, Holiday>; }> = ({ year, month, userLeaveDays, leaveTypes, holidays }) => {
     const monthDate = new Date(year, month);
     const monthName = format(monthDate, 'MMMM', { locale: ca });
     const daysInMonth = getDaysInMonth(monthDate);
-    const firstDayOfMonth = getDay(startOfMonth(monthDate)); // 0=Sun, 1=Mon
-    const startingDayOfWeek = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // 0=Mon, 6=Sun
+    const firstDayOfMonth = getDay(startOfMonth(monthDate));
+    const startingDayOfWeek = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const emptyDays = Array.from({ length: startingDayOfWeek }, (_, i) => i);
@@ -49,20 +50,15 @@ const MiniCalendar: React.FC<{ year: number; month: number; leaveDays: Record<st
                     const dayOfWeek = date.getDay();
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                     const holidayInfo = holidays[dateString];
-                    const leaveDaysOnDay = leaveDays[dateString];
+                    const leaveDay = userLeaveDays[dateString];
 
                     let cellClass = 'w-full h-6 rounded flex items-center justify-center text-xs';
                     let tooltip = '';
 
-                    if (leaveDaysOnDay && leaveDaysOnDay.length > 0) {
-                        const firstLeaveInfo = leaveTypes[leaveDaysOnDay[0].type];
-                        cellClass += ` ${firstLeaveInfo?.color} ${firstLeaveInfo?.textColor} font-bold`;
-                        if (leaveDaysOnDay.length > 1) {
-                            cellClass += ' ring-2 ring-offset-1 ring-purple-500';
-                            tooltip = leaveDaysOnDay.map(ld => `${ld.user.name}: ${leaveTypes[ld.type]?.label}`).join('\n');
-                        } else {
-                            tooltip = `${leaveDaysOnDay[0].user.name}: ${firstLeaveInfo?.label}`;
-                        }
+                    if (leaveDay) {
+                        const leaveInfo = leaveTypes[leaveDay.type];
+                        cellClass += ` ${leaveInfo?.color} ${leaveInfo?.textColor} font-bold`;
+                        tooltip = leaveInfo?.label || 'Permís';
                     } else if (holidayInfo) {
                         cellClass += ' bg-yellow-300';
                         tooltip = holidayInfo.name;
@@ -83,11 +79,14 @@ const MiniCalendar: React.FC<{ year: number; month: number; leaveDays: Record<st
     );
 };
 
-const YearGrid: React.FC<YearGridProps> = ({ currentDate, setCurrentDate, leaveDays, leaveTypes, holidays }) => {
+const YearGrid: React.FC<YearGridProps> = ({ currentDate, setCurrentDate, leaveDays, leaveTypes, holidays, users }) => {
     const year = getYear(currentDate);
 
     const handlePrevYear = () => setCurrentDate(subYears(currentDate, 1));
     const handleNextYear = () => setCurrentDate(addYears(currentDate, 1));
+
+    const user = users[0];
+    const userLeaveDays = leaveDays[user.id] || {};
 
     return (
         <div className="h-full flex flex-col">
@@ -98,7 +97,7 @@ const YearGrid: React.FC<YearGridProps> = ({ currentDate, setCurrentDate, leaveD
                         key={index}
                         year={year}
                         month={index}
-                        leaveDays={leaveDays}
+                        userLeaveDays={userLeaveDays}
                         leaveTypes={leaveTypes}
                         holidays={holidays}
                     />

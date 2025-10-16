@@ -37,10 +37,21 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ filters, allUsers, 
         });
 
         // FIX: Add explicit types to destructuring `[date, leaveDay]` to resolve property access and spread errors.
-        Object.entries(userData.leaveDays).forEach(([date, leaveDay]: [string, LeaveDay]) => {
-            if (parseISO(date).getFullYear() !== year) return;
+        Object.entries(userData.leaveDays).forEach(([dateString, leaveDay]: [string, LeaveDay]) => {
+            const date = parseISO(dateString);
+            if (date.getFullYear() !== year) return;
+
+            const isVacationInEarlyJanuary = 
+                leaveDay.type === 'VACANCES' && 
+                date.getMonth() === 0 && // January
+                date.getDate() <= 15;
+
+            if (isVacationInEarlyJanuary) {
+                return; // Do not include this day in the report for the current year
+            }
+
             if (selectedTypes.has(leaveDay.type)) {
-                flatLeaveDays.push({ user, date, ...leaveDay });
+                flatLeaveDays.push({ user, date: dateString, ...leaveDay });
             }
         });
     });
@@ -67,7 +78,6 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ filters, allUsers, 
   
   // FIX: Add explicit types to reducer arguments to handle 'unknown' type inference.
   const totalApprovedDays = Object.values(statsByType).reduce((sum: number, count: number) => sum + count, 0);
-  // FIX: This calculation now works because `totalApprovedDays` is correctly typed as a number.
   const consumptionPercentage = totalDaysAvailable > 0 ? Math.round((totalApprovedDays / totalDaysAvailable) * 100) : 0;
   
   // FIX: Cast array values to numbers for sorting to resolve arithmetic operation error.

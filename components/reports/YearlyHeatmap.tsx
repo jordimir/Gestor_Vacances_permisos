@@ -62,7 +62,7 @@ const YearlyHeatmap: React.FC<YearlyHeatmapProps> = ({ year, stats }) => {
             <div className="text-xs text-gray-500 text-right pr-1" style={{gridRow: '6', gridColumn: '1'}}>Dv</div>
 
             {daysInYear.map((day, i) => {
-                const dateString = format(day, 'yyyy-dd-MM');
+                const dateString = format(day, 'yyyy-MM-dd');
                 const count = stats[dateString] || 0;
                 return (
                 <div 
