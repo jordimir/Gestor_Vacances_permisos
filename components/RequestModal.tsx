@@ -95,7 +95,6 @@ const RequestForm: React.FC<{ title: string, dates: Date[] }> = ({ title, dates 
                 </p>
                 <div className="mt-2 font-semibold">Distribució mensual:</div>
                 <ul className="list-disc list-inside ml-4">
-                    {/* FIX: Use Object.keys to ensure proper type inference for monthDates. */}
                     {Object.keys(datesByMonth).map((month) => {
                         const monthDates = datesByMonth[month];
                         return (
@@ -126,7 +125,6 @@ const RequestModal: React.FC<RequestModalProps> = ({ leaveDays, leaveTypes, onCl
   const requestedDays = useMemo(() => {
     // Filter for only 'requested' days
     return Object.entries(leaveDays)
-      // FIX: Explicitly type 'leaveDay' as 'LeaveDay' to resolve TypeScript error where it was inferred as 'unknown'.
       .filter(([, leaveDay]: [string, LeaveDay]) => leaveDay.status === 'requested')
       .reduce((acc: Record<string, Date[]>, [dateStr, leaveDay]: [string, LeaveDay]) => {
         if (!acc[leaveDay.type]) {

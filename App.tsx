@@ -5,8 +5,11 @@ import Calendar from './components/Calendar';
 import Sidebar from './components/Sidebar';
 import RequestModal from './components/RequestModal';
 import ManageLeaveTypesModal from './components/ManageLeaveTypesModal';
-import { LeaveDay, LeaveTypeInfo } from './types';
+import Timeline from './components/Timeline';
+import { LeaveDay, LeaveTypeInfo, Holiday } from './types';
 import { DEFAULT_LEAVE_TYPES } from './constants';
+import { getHolidaysForYear } from './utils/holidays';
+import { getYear } from 'date-fns';
 
 export interface LeaveDayStats {
   requested: number;
@@ -17,31 +20,24 @@ export interface LeaveDayStats {
 }
 
 const App: React.FC = () => {
-  // --- ESTAT AMB PERSISTÈNCIA ---
-
-  // Carrega la data actual o utilitza la per defecte
   const [currentDate, setCurrentDate] = useState(() => {
     const savedDate = localStorage.getItem('currentCalendarDate');
-    return savedDate ? new Date(JSON.parse(savedDate)) : new Date(2025, 0, 1);
+    return savedDate ? new Date(JSON.parse(savedDate)) : new Date();
   });
 
-  // Carrega els dies de permís guardats o un objecte buit
   const [leaveDays, setLeaveDays] = useState<Record<string, LeaveDay>>(() => {
     const savedDays = localStorage.getItem('leaveDays');
     return savedDays ? JSON.parse(savedDays) : {};
   });
 
-  // Carrega els tipus de permís guardats o els per defecte
   const [leaveTypes, setLeaveTypes] = useState<Record<string, LeaveTypeInfo>>(() => {
     const savedTypes = localStorage.getItem('leaveTypes');
     return savedTypes ? JSON.parse(savedTypes) : DEFAULT_LEAVE_TYPES;
   });
 
-  // Estats de les finestres modals (no necessiten persistència)
+  const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('calendar');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-  
-  // --- EFECTES PER DESAR LES DADES ---
 
   useEffect(() => {
     localStorage.setItem('currentCalendarDate', JSON.stringify(currentDate));
@@ -55,8 +51,7 @@ const App: React.FC = () => {
     localStorage.setItem('leaveTypes', JSON.stringify(leaveTypes));
   }, [leaveTypes]);
 
-
-  // --- LÒGICA DE L'APLICACIÓ (sense canvis) ---
+  const holidays = useMemo(() => getHolidaysForYear(getYear(currentDate)), [currentDate]);
 
   const handleSetLeaveDay = useCallback((date: string, type: string | null) => {
     setLeaveDays(prev => {
@@ -136,15 +131,41 @@ const App: React.FC = () => {
             leaveTypes={leaveTypes} 
             onManageClick={() => setIsManageModalOpen(true)}
           />
-          <main className="flex-1 p-6 overflow-auto bg-gray-50">
-            <Calendar
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              leaveDays={leaveDays}
-              onSetLeaveDay={handleSetLeaveDay}
-              onApproveDay={handleApproveDay}
-              leaveTypes={leaveTypes}
-            />
+          <main className="flex-1 p-6 overflow-auto bg-gray-50 flex flex-col">
+            <div className="mb-4 bg-white p-2 rounded-md shadow-sm flex items-center gap-2 no-print self-start">
+              <span className="text-sm font-semibold text-gray-600">Vista:</span>
+              <button 
+                  onClick={() => setViewMode('calendar')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                  Calendari Mensual
+              </button>
+              <button 
+                  onClick={() => setViewMode('timeline')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'timeline' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                  Línia de Temps Anual
+              </button>
+            </div>
+            {viewMode === 'calendar' ? (
+              <Calendar
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                leaveDays={leaveDays}
+                onSetLeaveDay={handleSetLeaveDay}
+                onApproveDay={handleApproveDay}
+                leaveTypes={leaveTypes}
+                holidays={holidays}
+              />
+            ) : (
+              <Timeline
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                leaveDays={leaveDays}
+                leaveTypes={leaveTypes}
+                holidays={holidays}
+              />
+            )}
           </main>
         </div>
       </div>

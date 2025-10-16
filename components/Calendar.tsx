@@ -1,9 +1,8 @@
 import React from 'react';
 import { useDrop } from 'react-dnd';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, eachDayOfInterval, getDay, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, eachDayOfInterval, getDay, isSameMonth, isSameDay, addMonths, subMonths, getYear, setYear } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveDay, LeaveTypeInfo } from '../types';
-import { HOLIDAYS_2025, Holiday } from '../constants';
+import { LeaveDay, LeaveTypeInfo, Holiday } from '../types';
 
 interface CalendarProps {
   currentDate: Date;
@@ -12,31 +11,37 @@ interface CalendarProps {
   onSetLeaveDay: (date: string, type: string | null) => void;
   onApproveDay: (date: string) => void;
   leaveTypes: Record<string, LeaveTypeInfo>;
+  holidays: Record<string, Holiday>;
 }
 
-const CalendarHeader: React.FC<{ currentDate: Date; onPrevMonth: () => void; onNextMonth: () => void; }> = ({ currentDate, onPrevMonth, onNextMonth }) => (
+const CalendarHeader: React.FC<{ currentDate: Date; onPrevMonth: () => void; onNextMonth: () => void; onPrevYear: () => void; onNextYear: () => void; }> = ({ currentDate, onPrevMonth, onNextMonth, onPrevYear, onNextYear }) => (
   <div className="flex items-center justify-between mb-4">
-    <button onClick={onPrevMonth} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-      </svg>
-    </button>
+    <div className="flex items-center">
+      <button onClick={onPrevYear} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+      </button>
+      <button onClick={onPrevMonth} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+      </button>
+    </div>
     <h2 className="text-xl font-semibold text-gray-700 capitalize">
       {format(currentDate, 'MMMM yyyy', { locale: ca })}
     </h2>
-    <button onClick={onNextMonth} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
+    <div className="flex items-center">
+      <button onClick={onNextMonth} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+      </button>
+      <button onClick={onNextYear} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+      </button>
+    </div>
   </div>
 );
 
-const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; onSetLeaveDay: (date: string, type: string | null) => void; onApproveDay: (date: string) => void; leaveTypes: Record<string, LeaveTypeInfo> }> = ({ day, isCurrentMonth, leaveDay, onSetLeaveDay, onApproveDay, leaveTypes }) => {
+const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; onSetLeaveDay: (date: string, type: string | null) => void; onApproveDay: (date: string) => void; leaveTypes: Record<string, LeaveTypeInfo>; holiday?: Holiday; }> = ({ day, isCurrentMonth, leaveDay, onSetLeaveDay, onApproveDay, leaveTypes, holiday }) => {
   const dateString = format(day, 'yyyy-MM-dd');
-  const holidayInfo = HOLIDAYS_2025[dateString];
   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-  const isNonWorkDay = isWeekend || !!holidayInfo;
+  const isNonWorkDay = isWeekend || !!holiday;
 
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'LEAVE_TYPE',
@@ -58,7 +63,7 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
     local: 'text-purple-700',
     patron: 'text-green-700',
   };
-  const holidayColor = holidayInfo ? holidayColorClasses[holidayInfo.type] : '';
+  const holidayColor = holiday ? holidayColorClasses[holiday.type] : '';
 
   let baseBgClass = 'bg-white';
   if (!isCurrentMonth) {
@@ -79,7 +84,7 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
       `}
     >
       <time dateTime={dateString} className={`font-medium ${isNonWorkDay ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
-      {holidayInfo && <span className={`text-xs ${holidayColor} mt-1 truncate font-semibold`}>{holidayInfo.name}</span>}
+      {holiday && <span className={`text-xs ${holidayColor} mt-1 truncate font-semibold`}>{holiday.name}</span>}
       
       {leaveInfo && (
         <div className={`mt-auto p-1 rounded-md text-xs font-semibold flex items-center justify-between ${leaveInfo.color} ${leaveInfo.textColor}`}>
@@ -112,7 +117,7 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
 };
 
 
-const Calendar: React.FC<CalendarProps> = ({ currentDate, setCurrentDate, leaveDays, onSetLeaveDay, onApproveDay, leaveTypes }) => {
+const Calendar: React.FC<CalendarProps> = ({ currentDate, setCurrentDate, leaveDays, onSetLeaveDay, onApproveDay, leaveTypes, holidays }) => {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -122,25 +127,37 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, setCurrentDate, leaveD
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
+  const nextYear = () => setCurrentDate(setYear(currentDate, getYear(currentDate) + 1));
+  const prevYear = () => setCurrentDate(setYear(currentDate, getYear(currentDate) - 1));
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
-      <CalendarHeader currentDate={currentDate} onPrevMonth={prevMonth} onNextMonth={nextMonth} />
+      <CalendarHeader 
+        currentDate={currentDate} 
+        onPrevMonth={prevMonth} 
+        onNextMonth={nextMonth} 
+        onPrevYear={prevYear}
+        onNextYear={nextYear}
+      />
       <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200">
         {['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'].map(day => (
           <div key={day} className="text-center font-semibold text-sm text-gray-500 py-2 bg-gray-100">{day}</div>
         ))}
-        {days.map(day => (
-          <Day
-            key={day.toString()}
-            day={day}
-            isCurrentMonth={isSameMonth(day, monthStart)}
-            leaveDay={leaveDays[format(day, 'yyyy-MM-dd')]}
-            onSetLeaveDay={onSetLeaveDay}
-            onApproveDay={onApproveDay}
-            leaveTypes={leaveTypes}
-          />
-        ))}
+        {days.map(day => {
+          const dateString = format(day, 'yyyy-MM-dd');
+          return (
+            <Day
+              key={day.toString()}
+              day={day}
+              isCurrentMonth={isSameMonth(day, monthStart)}
+              leaveDay={leaveDays[dateString]}
+              onSetLeaveDay={onSetLeaveDay}
+              onApproveDay={onApproveDay}
+              leaveTypes={leaveTypes}
+              holiday={holidays[dateString]}
+            />
+          );
+        })}
       </div>
     </div>
   );
