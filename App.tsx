@@ -30,13 +30,104 @@ const loadUserData = <T,>(key: string, defaultValue: T): T => {
   return saved ? JSON.parse(saved) : defaultValue;
 };
 
+// Initial data seeding for Jordi Mir Gordils
+const JORDI_PROFILE: UserProfile = {
+  id: 'user-1700000000000-jmg',
+  name: 'Jordi Mir Gordils',
+  dni: '43671673D',
+  department: 'Serveis Tècnics',
+};
+
+const JORDI_INITIAL_LEAVE_DAYS: Record<string, LeaveDay> = {
+    '2024-03-25': { type: 'VACANCES', status: 'approved' },
+    '2024-03-26': { type: 'VACANCES', status: 'approved' },
+    '2024-03-27': { type: 'VACANCES', status: 'approved' },
+    '2024-03-28': { type: 'VACANCES', status: 'approved' },
+    '2024-04-02': { type: 'VACANCES', status: 'approved' },
+    '2024-05-02': { type: 'VACANCES', status: 'approved' },
+    '2024-05-03': { type: 'VACANCES', status: 'approved' },
+    '2024-07-10': { type: 'VACANCES', status: 'approved' },
+    '2024-07-11': { type: 'VACANCES', status: 'approved' },
+    '2024-07-12': { type: 'VACANCES', status: 'approved' },
+    '2024-07-15': { type: 'VACANCES', status: 'approved' },
+    '2024-07-16': { type: 'VACANCES', status: 'approved' },
+    '2024-07-17': { type: 'VACANCES', status: 'approved' },
+    '2024-07-18': { type: 'VACANCES', status: 'approved' },
+    '2024-07-19': { type: 'VACANCES', status: 'approved' },
+    '2024-07-22': { type: 'VACANCES', status: 'approved' },
+    '2024-08-12': { type: 'VACANCES', status: 'approved' },
+    '2024-08-13': { type: 'VACANCES', status: 'approved' },
+    '2024-08-14': { type: 'VACANCES', status: 'approved' },
+    '2024-08-16': { type: 'VACANCES', status: 'approved' },
+    '2024-10-31': { type: 'PONT', status: 'approved' },
+    '2024-12-05': { type: 'PONT', status: 'approved' },
+    '2024-12-23': { type: 'VACANCES', status: 'approved' },
+    '2024-12-27': { type: 'VACANCES', status: 'approved' },
+    '2024-12-30': { type: 'VACANCES', status: 'approved' },
+    '2025-01-02': { type: 'VACANCES', status: 'approved' },
+    '2025-01-03': { type: 'VACANCES', status: 'approved' },
+    '2025-01-05': { type: 'VACANCES', status: 'approved' },
+    '2025-01-07': { type: 'VACANCES', status: 'approved' },
+    '2025-02-10': { type: 'VACANCES', status: 'approved' },
+    '2025-03-03': { type: 'ASSUMPTES_PROPIS', status: 'approved' },
+    '2025-04-14': { type: 'VACANCES', status: 'approved' },
+    '2025-04-15': { type: 'VACANCES', status: 'approved' },
+    '2025-04-16': { type: 'VACANCES', status: 'approved' },
+    '2025-04-17': { type: 'VACANCES', status: 'approved' },
+    '2025-04-22': { type: 'VACANCES', status: 'approved' },
+    '2025-05-02': { type: 'PONT', status: 'approved' },
+    '2025-06-05': { type: 'ASSUMPTES_PROPIS', status: 'approved' },
+    '2025-06-23': { type: 'ASSUMPTES_PROPIS', status: 'approved' },
+    '2025-07-28': { type: 'VACANCES', status: 'approved' },
+    '2025-07-29': { type: 'VACANCES', status: 'approved' },
+    '2025-07-30': { type: 'VACANCES', status: 'approved' },
+    '2025-07-31': { type: 'VACANCES', status: 'approved' },
+    '2025-08-01': { type: 'VACANCES', status: 'approved' },
+    '2025-08-04': { type: 'VACANCES', status: 'approved' },
+    '2025-08-05': { type: 'VACANCES', status: 'approved' },
+    '2025-08-06': { type: 'VACANCES', status: 'approved' },
+    '2025-08-07': { type: 'VACANCES', status: 'approved' },
+    '2025-08-08': { type: 'VACANCES', status: 'approved' },
+    '2025-08-18': { type: 'VACANCES', status: 'approved' },
+    '2025-08-19': { type: 'VACANCES', status: 'approved' },
+    '2025-08-20': { type: 'VACANCES', status: 'approved' },
+    '2025-08-21': { type: 'VACANCES', status: 'approved' },
+    '2025-08-22': { type: 'VACANCES', status: 'approved' },
+    '2025-09-30': { type: 'ASSUMPTES_PROPIS', status: 'approved' },
+    '2025-12-05': { type: 'PONT', status: 'approved' },
+    '2025-12-22': { type: 'VACANCES', status: 'approved' },
+    '2025-12-23': { type: 'VACANCES', status: 'approved' },
+    '2025-12-29': { type: 'VACANCES', status: 'approved' },
+    '2025-12-30': { type: 'VACANCES', status: 'approved' },
+    '2026-01-02': { type: 'VACANCES', status: 'approved' },
+    '2026-01-05': { type: 'VACANCES', status: 'approved' },
+    '2026-01-07': { type: 'VACANCES', status: 'approved' },
+};
+
 const App: React.FC = () => {
-  const [users, setUsers] = useState<UserProfile[]>(() => loadUserData<UserProfile[]>('users', []));
+  const [users, setUsers] = useState<UserProfile[]>(() => {
+    const savedUsers = loadUserData<UserProfile[]>('users', []);
+    if (savedUsers.length === 0) {
+      // First time load: seed Jordi's data
+      localStorage.setItem(`leaveDays-${JORDI_PROFILE.id}`, JSON.stringify(JORDI_INITIAL_LEAVE_DAYS));
+      localStorage.setItem(`leaveTypes-${JORDI_PROFILE.id}`, JSON.stringify(DEFAULT_LEAVE_TYPES));
+      const initialUsers = [JORDI_PROFILE];
+      localStorage.setItem('users', JSON.stringify(initialUsers));
+      return initialUsers;
+    }
+    return savedUsers;
+  });
+  
   const [activeUser, setActiveUser] = useState<UserProfile | null>(() => {
     const activeUserId = localStorage.getItem('activeUserId');
     if (activeUserId) {
       const savedUsers = loadUserData<UserProfile[]>('users', []);
       return savedUsers.find(u => u.id === activeUserId) || null;
+    }
+    // If no active user, but Jordi was just seeded, make him active.
+    const currentUsers = loadUserData<UserProfile[]>('users', []);
+    if (!activeUserId && currentUsers.length > 0 && currentUsers[0].id === JORDI_PROFILE.id) {
+        return currentUsers[0];
     }
     return null;
   });
