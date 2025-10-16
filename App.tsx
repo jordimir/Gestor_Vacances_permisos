@@ -10,6 +10,7 @@ import Timeline from './components/Timeline';
 import YearGrid from './components/YearGrid';
 import UserSelection from './components/UserSelection';
 import FilterBar from './components/FilterBar';
+import ReportsDashboard from './components/ReportsDashboard';
 import { LeaveDay, LeaveTypeInfo, Holiday, UserProfile, DisplayLeaveDay } from './types';
 import { DEFAULT_LEAVE_TYPES } from './constants';
 import { getHolidaysForYear } from './utils/holidays';
@@ -45,7 +46,7 @@ const App: React.FC = () => {
     return savedDate ? new Date(JSON.parse(savedDate)) : new Date();
   });
 
-  const [viewMode, setViewMode] = useState<'calendar' | 'timeline' | 'yearGrid'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'timeline' | 'yearGrid' | 'reports'>('calendar');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
 
@@ -89,7 +90,6 @@ const App: React.FC = () => {
       const userData = allUsersData[user.id];
       if (!userData) return;
 
-      // FIX: Add explicit types to destructuring assignment from Object.entries to fix type inference issues. This resolves errors on lines 93 and 100.
       Object.entries(userData.leaveDays).forEach(([date, leaveDay]: [string, LeaveDay]) => {
         // Apply leave type filter
         if (filters.selectedTypes.length > 0 && !filters.selectedTypes.includes(leaveDay.type)) {
@@ -170,7 +170,6 @@ const App: React.FC = () => {
         stats[type] = { requested: 0, approved: 0, remaining: 0, requestedDates: [], approvedDates: [] };
     });
 
-    // FIX: Add explicit types to destructuring assignment from Object.entries to fix type inference issue. This resolves error on line 172.
     Object.entries(filteredLeaveDays).forEach(([date, days]: [string, DisplayLeaveDay[]]) => {
         days.forEach(day => {
             if (stats[day.type]) {
@@ -185,8 +184,6 @@ const App: React.FC = () => {
         });
     });
     
-    // Remaining calculation needs context of a single user, which is complex in filtered view.
-    // For now, we show totals based on filter.
     Object.keys(stats).forEach(type => {
         stats[type].requestedDates.sort((a, b) => a.date.localeCompare(b.date));
         stats[type].approvedDates.sort((a, b) => a.date.localeCompare(b.date));
@@ -199,6 +196,48 @@ const App: React.FC = () => {
       return <UserSelection users={users} setUsers={saveUsersAndLocalStorage} onUserSelect={setActiveUserAndSave} />;
   }
 
+  const renderCurrentView = () => {
+    switch(viewMode) {
+      case 'calendar':
+        return <Calendar
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          leaveDays={filteredLeaveDays}
+          onSetLeaveDay={handleSetLeaveDay}
+          onApproveDay={handleApproveDay}
+          leaveTypes={allLeaveTypes}
+          holidays={holidays}
+          activeUser={activeUser}
+        />;
+      case 'timeline':
+        return <Timeline
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          leaveDays={filteredLeaveDays}
+          leaveTypes={allLeaveTypes}
+          holidays={holidays}
+        />;
+      case 'yearGrid':
+        return <YearGrid
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          leaveDays={filteredLeaveDays}
+          leaveTypes={allLeaveTypes}
+          holidays={holidays}
+        />;
+      case 'reports':
+        return <ReportsDashboard
+          filters={filters}
+          allUsers={users}
+          allUsersData={allUsersData}
+          allLeaveTypes={allLeaveTypes}
+          year={getYear(currentDate)}
+        />;
+      default:
+        return null;
+    }
+  };
+  
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col h-screen font-sans">
@@ -236,38 +275,12 @@ const App: React.FC = () => {
                   <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Mensual</button>
                   <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'timeline' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Línia de Temps</button>
                   <button onClick={() => setViewMode('yearGrid')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'yearGrid' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Anual</button>
+                  <button onClick={() => setViewMode('reports')} className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'reports' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Informes</button>
                 </div>
                 <FilterBar allUsers={users} allLeaveTypes={allLeaveTypes} filters={filters} onFilterChange={setFilters} />
             </div>
 
-            {viewMode === 'calendar' ? (
-              <Calendar
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                leaveDays={filteredLeaveDays}
-                onSetLeaveDay={handleSetLeaveDay}
-                onApproveDay={handleApproveDay}
-                leaveTypes={allLeaveTypes}
-                holidays={holidays}
-                activeUser={activeUser}
-              />
-            ) : viewMode === 'timeline' ? (
-              <Timeline
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                leaveDays={filteredLeaveDays}
-                leaveTypes={allLeaveTypes}
-                holidays={holidays}
-              />
-            ) : (
-              <YearGrid
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                leaveDays={filteredLeaveDays}
-                leaveTypes={allLeaveTypes}
-                holidays={holidays}
-              />
-            )}
+            {renderCurrentView()}
           </main>
         </div>
       </div>
