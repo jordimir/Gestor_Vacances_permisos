@@ -52,10 +52,3 @@ export const FIXED_HOLIDAYS: { month: number, day: number, name: string, type: '
     { month: 12, day: 25, name: 'Nadal', type: 'national' },
     { month: 12, day: 26, name: 'Sant Esteve', type: 'catalan' },
 ];
-
-
-export const USER_INFO = {
-    name: 'JORDI MIR GORDILS',
-    dni: '43671673D',
-    department: 'SERVEIS TÈCNICS'
-};

@@ -1,12 +1,12 @@
 import React from 'react';
-import { format, getDaysInMonth, getYear, addYears, subYears, setYear } from 'date-fns';
+import { format, getDaysInMonth, getYear, addYears, subYears } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveDay, LeaveTypeInfo, Holiday } from '../types';
+import { LeaveTypeInfo, Holiday, DisplayLeaveDay } from '../types';
 
 interface TimelineProps {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
-  leaveDays: Record<string, LeaveDay>;
+  leaveDays: Record<string, DisplayLeaveDay[]>;
   leaveTypes: Record<string, LeaveTypeInfo>;
   holidays: Record<string, Holiday>;
 }
@@ -61,15 +61,23 @@ const Timeline: React.FC<TimelineProps> = ({ currentDate, setCurrentDate, leaveD
                   const dayOfWeek = date.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                   const holidayInfo = holidays[dateString];
-                  const leaveDay = leaveDays[dateString];
-                  const leaveInfo = leaveDay ? leaveTypes[leaveDay.type] : null;
+                  const leaveDaysOnDay = leaveDays[dateString];
 
                   let cellClass = 'h-8 border-t border-l border-gray-200';
                   let tooltip = '';
-                  
-                  if (leaveInfo) {
-                      cellClass += ` ${leaveInfo.color}`;
-                      tooltip = leaveInfo.label;
+                  let cellStyle: React.CSSProperties = {};
+
+                  if (leaveDaysOnDay && leaveDaysOnDay.length > 0) {
+                      if (leaveDaysOnDay.length === 1) {
+                          const leaveInfo = leaveTypes[leaveDaysOnDay[0].type];
+                          cellClass += ` ${leaveInfo?.color || 'bg-gray-400'}`;
+                          tooltip = `${leaveDaysOnDay[0].user.name}: ${leaveInfo?.label}`;
+                      } else {
+                          // Multiple users, create a striped background
+                          const colors = leaveDaysOnDay.map(ld => leaveTypes[ld.type]?.color).map(c => `var(--tw-color-${c.split('-')[1]}-${c.split('-')[2]})`);
+                          cellStyle.background = `repeating-linear-gradient(45deg, ${colors[0]}, ${colors[0]} 10px, ${colors[1] || '#E5E7EB'} 10px, ${colors[1] || '#E5E7EB'} 20px)`;
+                          tooltip = leaveDaysOnDay.map(ld => `${ld.user.name}: ${leaveTypes[ld.type]?.label}`).join('\n');
+                      }
                   } else if (holidayInfo) {
                       cellClass += ' bg-yellow-200';
                       tooltip = holidayInfo.name;
@@ -80,7 +88,7 @@ const Timeline: React.FC<TimelineProps> = ({ currentDate, setCurrentDate, leaveD
                   }
 
                   return (
-                    <div key={day} className={cellClass} title={tooltip}></div>
+                    <div key={day} className={cellClass} title={tooltip} style={cellStyle}></div>
                   );
                 })}
               </React.Fragment>

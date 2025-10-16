@@ -2,16 +2,17 @@ import React from 'react';
 import { useDrop } from 'react-dnd';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, eachDayOfInterval, getDay, isSameMonth, isSameDay, addMonths, subMonths, getYear, setYear } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveDay, LeaveTypeInfo, Holiday } from '../types';
+import { LeaveTypeInfo, Holiday, DisplayLeaveDay, UserProfile } from '../types';
 
 interface CalendarProps {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
-  leaveDays: Record<string, LeaveDay>;
+  leaveDays: Record<string, DisplayLeaveDay[]>;
   onSetLeaveDay: (date: string, type: string | null) => void;
-  onApproveDay: (date: string) => void;
+  onApproveDay: (date: string, userId: string) => void;
   leaveTypes: Record<string, LeaveTypeInfo>;
   holidays: Record<string, Holiday>;
+  activeUser: UserProfile;
 }
 
 const CalendarHeader: React.FC<{ currentDate: Date; onPrevMonth: () => void; onNextMonth: () => void; onPrevYear: () => void; onNextYear: () => void; }> = ({ currentDate, onPrevMonth, onNextMonth, onPrevYear, onNextYear }) => (
@@ -38,24 +39,30 @@ const CalendarHeader: React.FC<{ currentDate: Date; onPrevMonth: () => void; onN
   </div>
 );
 
-const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; onSetLeaveDay: (date: string, type: string | null) => void; onApproveDay: (date: string) => void; leaveTypes: Record<string, LeaveTypeInfo>; holiday?: Holiday; }> = ({ day, isCurrentMonth, leaveDay, onSetLeaveDay, onApproveDay, leaveTypes, holiday }) => {
+const Day: React.FC<{
+  day: Date;
+  isCurrentMonth: boolean;
+  leaveDaysOnDay: DisplayLeaveDay[];
+  onSetLeaveDay: (date: string, type: string | null) => void;
+  onApproveDay: (date: string, userId: string) => void;
+  leaveTypes: Record<string, LeaveTypeInfo>;
+  holiday?: Holiday;
+  activeUser: UserProfile;
+}> = ({ day, isCurrentMonth, leaveDaysOnDay, onSetLeaveDay, onApproveDay, leaveTypes, holiday, activeUser }) => {
   const dateString = format(day, 'yyyy-MM-dd');
   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
   const isNonWorkDay = isWeekend || !!holiday;
+  const activeUserLeave = leaveDaysOnDay?.find(ld => ld.user.id === activeUser.id);
 
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'LEAVE_TYPE',
-    canDrop: () => !leaveDay && !isNonWorkDay,
+    canDrop: () => !activeUserLeave && !isNonWorkDay,
     drop: (item: { type: string }) => onSetLeaveDay(dateString, item.type),
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
       canDrop: !!monitor.canDrop(),
     }),
-  }), [dateString, onSetLeaveDay, leaveDay, isNonWorkDay]);
-
-  const leaveInfo = leaveDay ? leaveTypes[leaveDay.type] : null;
-
-  const borderStyle = leaveDay?.status === 'requested' ? 'border-dashed border-orange-400' : 'border-solid border-green-500';
+  }), [dateString, onSetLeaveDay, activeUserLeave, isNonWorkDay]);
 
   const holidayColorClasses: Record<Holiday['type'], string> = {
     national: 'text-red-700',
@@ -68,56 +75,60 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
   let baseBgClass = 'bg-white';
   if (!isCurrentMonth) {
     baseBgClass = 'bg-gray-50 text-gray-400';
-  } else if (isNonWorkDay && !leaveDay) {
+  } else if (isNonWorkDay) {
     baseBgClass = 'bg-gray-100';
   }
 
   return (
     <div
       ref={drop}
-      className={`relative h-28 border flex flex-col p-2 transition-all duration-200
-        ${baseBgClass}
+      className={`relative min-h-[7rem] border border-gray-200 flex flex-col p-1.5 transition-all duration-200 ${baseBgClass}
         ${isOver && canDrop ? 'bg-blue-100' : ''}
         ${isOver && !canDrop ? 'bg-red-200 cursor-not-allowed' : ''}
-        ${leaveDay ? borderStyle + ' border-2' : 'border-gray-200'}
-        ${isSameDay(day, new Date()) && !leaveDay ? 'border-2 border-blue-500' : ''}
+        ${isSameDay(day, new Date()) ? 'border-2 border-blue-500' : ''}
       `}
     >
-      <time dateTime={dateString} className={`font-medium ${isNonWorkDay ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
+      <time dateTime={dateString} className={`text-sm font-medium ${isNonWorkDay ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
       {holiday && <span className={`text-xs ${holidayColor} mt-1 truncate font-semibold`}>{holiday.name}</span>}
       
-      {leaveInfo && (
-        <div className={`mt-auto p-1 rounded-md text-xs font-semibold flex items-center justify-between ${leaveInfo.color} ${leaveInfo.textColor}`}>
-          <span className="truncate flex-1">{leaveInfo.label}</span>
-          <button onClick={() => onSetLeaveDay(dateString, null)} className="ml-1 opacity-75 hover:opacity-100 flex-shrink-0">
-            &times;
-          </button>
-        </div>
-      )}
+      <div className="mt-1 space-y-1 overflow-y-auto">
+        {leaveDaysOnDay?.map(ld => {
+          const leaveInfo = leaveTypes[ld.type];
+          if (!leaveInfo) return null;
+          const isCurrentUser = ld.user.id === activeUser.id;
+          const borderStyle = ld.status === 'requested' ? 'border-dashed border-orange-400' : 'border-solid border-green-500';
+          const userInitials = ld.user.name.split(' ').map(n => n[0]).join('');
 
-      {leaveDay && (
-          <div className="absolute top-1 right-1">
-              {leaveDay.status === 'requested' ? (
-                  <button onClick={() => onApproveDay(dateString)} title="Aprovar dia" className="w-5 h-5 bg-orange-400 rounded-full flex items-center justify-center text-white hover:bg-orange-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          return (
+            <div key={ld.user.id} title={`${ld.user.name}: ${leaveInfo.label}`} className={`p-1 rounded-md text-xs font-semibold flex items-center justify-between border-2 ${leaveInfo.color} ${leaveInfo.textColor} ${borderStyle}`}>
+              <span className="truncate flex-1">{userInitials}</span>
+              {isCurrentUser && (
+                <button onClick={() => onSetLeaveDay(dateString, null)} className="ml-1 opacity-75 hover:opacity-100 flex-shrink-0">
+                  &times;
+                </button>
+              )}
+              {ld.status === 'requested' ? (
+                  <button onClick={() => onApproveDay(dateString, ld.user.id)} title={`Aprovar dia per a ${ld.user.name}`} className="w-4 h-4 bg-orange-400 rounded-full flex items-center justify-center text-white hover:bg-orange-500 ml-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                   </button>
               ) : (
-                  <div title="Dia aprovat" className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <div title="Dia aprovat" className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-white ml-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                   </div>
               )}
-          </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
-
-const Calendar: React.FC<CalendarProps> = ({ currentDate, setCurrentDate, leaveDays, onSetLeaveDay, onApproveDay, leaveTypes, holidays }) => {
+const Calendar: React.FC<CalendarProps> = ({ currentDate, setCurrentDate, leaveDays, onSetLeaveDay, onApproveDay, leaveTypes, holidays, activeUser }) => {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -150,11 +161,12 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, setCurrentDate, leaveD
               key={day.toString()}
               day={day}
               isCurrentMonth={isSameMonth(day, monthStart)}
-              leaveDay={leaveDays[dateString]}
+              leaveDaysOnDay={leaveDays[dateString] || []}
               onSetLeaveDay={onSetLeaveDay}
               onApproveDay={onApproveDay}
               leaveTypes={leaveTypes}
               holiday={holidays[dateString]}
+              activeUser={activeUser}
             />
           );
         })}

@@ -1,12 +1,12 @@
 import React from 'react';
 import { format, getYear, getDaysInMonth, startOfMonth, getDay, addYears, subYears } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveDay, LeaveTypeInfo, Holiday } from '../types';
+import { LeaveTypeInfo, Holiday, DisplayLeaveDay } from '../types';
 
 interface YearGridProps {
   currentDate: Date;
   setCurrentDate: (date: Date) => void;
-  leaveDays: Record<string, LeaveDay>;
+  leaveDays: Record<string, DisplayLeaveDay[]>;
   leaveTypes: Record<string, LeaveTypeInfo>;
   holidays: Record<string, Holiday>;
 }
@@ -23,7 +23,7 @@ const YearGridHeader: React.FC<{ year: number; onPrevYear: () => void; onNextYea
     </div>
 );
 
-const MiniCalendar: React.FC<{ year: number; month: number; leaveDays: Record<string, LeaveDay>; leaveTypes: Record<string, LeaveTypeInfo>; holidays: Record<string, Holiday>; }> = ({ year, month, leaveDays, leaveTypes, holidays }) => {
+const MiniCalendar: React.FC<{ year: number; month: number; leaveDays: Record<string, DisplayLeaveDay[]>; leaveTypes: Record<string, LeaveTypeInfo>; holidays: Record<string, Holiday>; }> = ({ year, month, leaveDays, leaveTypes, holidays }) => {
     const monthDate = new Date(year, month);
     const monthName = format(monthDate, 'MMMM', { locale: ca });
     const daysInMonth = getDaysInMonth(monthDate);
@@ -49,15 +49,20 @@ const MiniCalendar: React.FC<{ year: number; month: number; leaveDays: Record<st
                     const dayOfWeek = date.getDay();
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                     const holidayInfo = holidays[dateString];
-                    const leaveDay = leaveDays[dateString];
-                    const leaveInfo = leaveDay ? leaveTypes[leaveDay.type] : null;
+                    const leaveDaysOnDay = leaveDays[dateString];
 
                     let cellClass = 'w-full h-6 rounded flex items-center justify-center text-xs';
                     let tooltip = '';
 
-                    if (leaveInfo) {
-                        cellClass += ` ${leaveInfo.color} ${leaveInfo.textColor} font-bold`;
-                        tooltip = leaveInfo.label;
+                    if (leaveDaysOnDay && leaveDaysOnDay.length > 0) {
+                        const firstLeaveInfo = leaveTypes[leaveDaysOnDay[0].type];
+                        cellClass += ` ${firstLeaveInfo?.color} ${firstLeaveInfo?.textColor} font-bold`;
+                        if (leaveDaysOnDay.length > 1) {
+                            cellClass += ' ring-2 ring-offset-1 ring-purple-500';
+                            tooltip = leaveDaysOnDay.map(ld => `${ld.user.name}: ${leaveTypes[ld.type]?.label}`).join('\n');
+                        } else {
+                            tooltip = `${leaveDaysOnDay[0].user.name}: ${firstLeaveInfo?.label}`;
+                        }
                     } else if (holidayInfo) {
                         cellClass += ' bg-yellow-300';
                         tooltip = holidayInfo.name;
@@ -87,7 +92,7 @@ const YearGrid: React.FC<YearGridProps> = ({ currentDate, setCurrentDate, leaveD
     return (
         <div className="h-full flex flex-col">
             <YearGridHeader year={year} onPrevYear={handlePrevYear} onNextYear={handleNextYear} />
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-y-auto">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-y-auto p-1">
                 {Array.from({ length: 12 }).map((_, index) => (
                     <MiniCalendar 
                         key={index}

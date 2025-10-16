@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ca } from 'date-fns/locale';
-import { LeaveDay, LeaveTypeInfo } from '../types';
-import { USER_INFO } from '../constants';
+import { LeaveDay, LeaveTypeInfo, UserProfile } from '../types';
 
 interface RequestModalProps {
+  user: UserProfile;
   leaveDays: Record<string, LeaveDay>;
   leaveTypes: Record<string, LeaveTypeInfo>;
   onClose: () => void;
@@ -50,7 +50,7 @@ const isSameDay = (date1: Date, date2: Date) => {
            date1.getDate() === date2.getDate();
 };
 
-const RequestForm: React.FC<{ title: string, dates: Date[] }> = ({ title, dates }) => {
+const RequestForm: React.FC<{ title: string, dates: Date[], user: UserProfile }> = ({ title, dates, user }) => {
     if (dates.length === 0) return null;
 
     const datesByMonth = dates.reduce((acc: Record<string, Date[]>, date: Date) => {
@@ -78,13 +78,13 @@ const RequestForm: React.FC<{ title: string, dates: Date[] }> = ({ title, dates 
                 <tbody>
                     <tr>
                         <td className="border border-black p-1 font-bold w-1/4">EN/NA:</td>
-                        <td className="border border-black p-1">{USER_INFO.name}</td>
+                        <td className="border border-black p-1">{user.name}</td>
                     </tr>
                     <tr>
                         <td className="border border-black p-1 font-bold">AMB NÚM. DNI:</td>
-                        <td className="border border-black p-1">{USER_INFO.dni}</td>
+                        <td className="border border-black p-1">{user.dni}</td>
                         <td className="border border-black p-1 font-bold w-1/6">DEPT.</td>
-                        <td className="border border-black p-1 w-1/3">{USER_INFO.department}</td>
+                        <td className="border border-black p-1 w-1/3">{user.department}</td>
                     </tr>
                 </tbody>
             </table>
@@ -121,7 +121,7 @@ const RequestForm: React.FC<{ title: string, dates: Date[] }> = ({ title, dates 
     );
 };
 
-const RequestModal: React.FC<RequestModalProps> = ({ leaveDays, leaveTypes, onClose }) => {
+const RequestModal: React.FC<RequestModalProps> = ({ user, leaveDays, leaveTypes, onClose }) => {
   const requestedDays = useMemo(() => {
     // Filter for only 'requested' days
     return Object.entries(leaveDays)
@@ -154,7 +154,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ leaveDays, leaveTypes, onCl
                 <p className="text-center text-gray-500">No hi ha dies pendents de sol·licitar. Arrossega nous dies al calendari per generar una sol·licitud.</p>
             ) : (
                 Object.entries(requestedDays).map(([type, dates]) => (
-                    <RequestForm key={type} title={leaveTypes[type]?.label.toUpperCase() ?? type} dates={dates} />
+                    <RequestForm key={type} title={leaveTypes[type]?.label.toUpperCase() ?? type} dates={dates} user={user} />
                 ))
             )}
         </main>

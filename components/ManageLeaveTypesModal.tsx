@@ -3,7 +3,7 @@ import { LeaveTypeInfo, LeaveDay } from '../types';
 
 interface ManageLeaveTypesModalProps {
   leaveTypes: Record<string, LeaveTypeInfo>;
-  setLeaveTypes: React.Dispatch<React.SetStateAction<Record<string, LeaveTypeInfo>>>;
+  setLeaveTypes: (newTypes: Record<string, LeaveTypeInfo>) => void;
   leaveDays: Record<string, LeaveDay>;
   onClose: () => void;
 }
@@ -59,10 +59,10 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
 
     if (editingKey) {
       // Update
-      setLeaveTypes(prev => ({
-        ...prev,
+      setLeaveTypes({
+        ...leaveTypes,
         [editingKey]: newInfo,
-      }));
+      });
     } else {
       // Add new
       const newKey = label.toUpperCase().replace(/\s+/g, '_');
@@ -70,10 +70,10 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
         alert('Ja existeix un tipus de permís amb un nom similar.');
         return;
       }
-      setLeaveTypes(prev => ({
-        ...prev,
+      setLeaveTypes({
+        ...leaveTypes,
         [newKey]: newInfo,
-      }));
+      });
     }
     resetForm();
   };
@@ -88,11 +88,8 @@ const ManageLeaveTypesModal: React.FC<ManageLeaveTypesModalProps> = ({ leaveType
         return;
     }
     if (window.confirm(`Segur que vols eliminar el tipus de permís "${leaveTypes[typeKey].label}"?`)) {
-      setLeaveTypes(prev => {
-        const newTypes = { ...prev };
-        delete newTypes[typeKey];
-        return newTypes;
-      });
+      const { [typeKey]: _, ...newTypes } = leaveTypes;
+      setLeaveTypes(newTypes);
     }
   };
 
