@@ -3,7 +3,7 @@ import { useDrop } from 'react-dnd';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, eachDayOfInterval, getDay, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ca } from 'date-fns/locale';
 import { LeaveDay, LeaveTypeInfo } from '../types';
-import { CATALAN_HOLIDAYS_2025 } from '../constants';
+import { HOLIDAYS_2025, Holiday } from '../constants';
 
 interface CalendarProps {
   currentDate: Date;
@@ -34,12 +34,12 @@ const CalendarHeader: React.FC<{ currentDate: Date; onPrevMonth: () => void; onN
 
 const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; onSetLeaveDay: (date: string, type: string | null) => void; onApproveDay: (date: string) => void; leaveTypes: Record<string, LeaveTypeInfo> }> = ({ day, isCurrentMonth, leaveDay, onSetLeaveDay, onApproveDay, leaveTypes }) => {
   const dateString = format(day, 'yyyy-MM-dd');
-  const holiday = CATALAN_HOLIDAYS_2025[dateString];
+  const holidayInfo = HOLIDAYS_2025[dateString];
   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
 
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'LEAVE_TYPE',
-    canDrop: () => !leaveDay, // CORRECCIÓ: `canDrop` ha de ser una funció que retorni un booleà.
+    canDrop: () => !leaveDay,
     drop: (item: { type: string }) => onSetLeaveDay(dateString, item.type),
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
@@ -50,6 +50,14 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
   const leaveInfo = leaveDay ? leaveTypes[leaveDay.type] : null;
 
   const borderStyle = leaveDay?.status === 'requested' ? 'border-dashed border-orange-400' : 'border-solid border-green-500';
+
+  const holidayColorClasses: Record<Holiday['type'], string> = {
+    national: 'text-red-700',
+    catalan: 'text-red-700',
+    local: 'text-purple-700',
+    patron: 'text-green-700',
+  };
+  const holidayColor = holidayInfo ? holidayColorClasses[holidayInfo.type] : '';
 
   return (
     <div
@@ -62,8 +70,8 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
         ${isSameDay(day, new Date()) && !leaveDay ? 'border-2 border-blue-500' : ''}
       `}
     >
-      <time dateTime={dateString} className={`font-medium ${holiday || isWeekend ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
-      {holiday && <span className="text-xs text-red-700 mt-1 truncate">{holiday}</span>}
+      <time dateTime={dateString} className={`font-medium ${holidayInfo || isWeekend ? 'text-red-600' : 'text-gray-600'}`}>{format(day, 'd')}</time>
+      {holidayInfo && <span className={`text-xs ${holidayColor} mt-1 truncate font-semibold`}>{holidayInfo.name}</span>}
       
       {leaveInfo && (
         <div className={`mt-auto p-1 rounded-md text-xs font-semibold flex items-center justify-between ${leaveInfo.color} ${leaveInfo.textColor}`}>

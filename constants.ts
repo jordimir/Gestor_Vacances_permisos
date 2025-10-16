@@ -33,21 +33,36 @@ export const DEFAULT_LEAVE_TYPES: Record<string, LeaveTypeInfo> = {
   },
 };
 
-export const CATALAN_HOLIDAYS_2025: Record<string, string> = {
-  '2025-01-01': 'Cap d\'Any',
-  '2025-01-06': 'Reis',
-  '2025-04-18': 'Divendres Sant',
-  '2025-04-21': 'Dilluns de Pasqua',
-  '2025-05-01': 'Dia del Treball',
-  '2025-06-24': 'Sant Joan',
-  '2025-08-15': 'L\'Assumpció',
-  '2025-09-11': 'Diada Nacional de Catalunya',
-  '2025-10-12': 'Festa Nacional d\'Espanya',
-  '2025-11-01': 'Tots Sants',
-  '2025-12-06': 'Dia de la Constitució',
-  '2025-12-08': 'La Immaculada',
-  '2025-12-25': 'Nadal',
-  '2025-12-26': 'Sant Esteve',
+export interface Holiday {
+  name: string;
+  type: 'national' | 'catalan' | 'local' | 'patron';
+}
+
+export const HOLIDAYS_2025: Record<string, Holiday> = {
+  // Festius Nacionals (Espanya)
+  '2025-01-01': { name: 'Cap d\'Any', type: 'national' },
+  '2025-01-06': { name: 'Reis', type: 'national' },
+  '2025-04-18': { name: 'Divendres Sant', type: 'national' },
+  '2025-05-01': { name: 'Dia del Treball', type: 'national' },
+  '2025-08-15': { name: 'L\'Assumpció', type: 'national' },
+  '2025-10-12': { name: 'Festa Nacional d\'Espanya', type: 'national' },
+  '2025-11-01': { name: 'Tots Sants', type: 'national' },
+  '2025-12-06': { name: 'Dia de la Constitució', type: 'national' },
+  '2025-12-08': { name: 'La Immaculada', type: 'national' },
+  '2025-12-25': { name: 'Nadal', type: 'national' },
+  
+  // Festius de Catalunya
+  '2025-04-21': { name: 'Dilluns de Pasqua', type: 'catalan' },
+  '2025-06-24': { name: 'Sant Joan', type: 'catalan' },
+  '2025-09-11': { name: 'Diada Nacional de Catalunya', type: 'catalan' },
+  '2025-12-26': { name: 'Sant Esteve', type: 'catalan' },
+  
+  // Festiu Patrona
+  '2025-05-22': { name: 'Santa Rita', type: 'patron' },
+
+  // Festius Locals (Tossa de Mar)
+  '2025-01-22': { name: 'Sant Vicenç', type: 'local' },
+  '2025-06-29': { name: 'Sant Pere', type: 'local' },
 };
 
 export const USER_INFO = {
