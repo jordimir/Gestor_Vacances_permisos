@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { exportToCsv } from '../../utils/export';
 import { UserProfile, LeaveDay, LeaveTypeInfo } from '../../types';
@@ -30,11 +29,6 @@ const ExportControls: React.FC<ExportControlsProps> = ({ users, leaveDays, leave
     exportToCsv(`informe-permisos-${year}.${formatType === 'excel' ? 'xls' : 'csv'}`, [headers, ...rows]);
     setIsOpen(false);
   };
-  
-  const handlePrint = () => {
-      window.print();
-      setIsOpen(false);
-  }
 
   return (
     <div className="relative">
@@ -48,7 +42,6 @@ const ExportControls: React.FC<ExportControlsProps> = ({ users, leaveDays, leave
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-30 border">
           <ul className="py-1">
-            <li><button onClick={handlePrint} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar a PDF</button></li>
             <li><button onClick={() => handleExport('csv')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar a CSV</button></li>
             <li><button onClick={() => handleExport('excel')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar a Excel</button></li>
           </ul>

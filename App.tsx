@@ -222,7 +222,8 @@ const App: React.FC = () => {
               <ReportsDashboard
                 allUsers={users}
                 allLeaveData={Object.entries(allUserData).reduce((acc, [userId, data]) => {
-                  acc[userId] = data.leaveDays;
+                  // FIX: Add a type assertion to `data` to resolve a TypeScript error where its type is inferred as `unknown`.
+                  acc[userId] = (data as UserData).leaveDays;
                   return acc;
                 }, {} as Record<string, Record<string, LeaveDay>>)}
                 leaveTypes={activeUserData.leaveTypes} // Assuming global leave types for now

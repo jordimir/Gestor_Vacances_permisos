@@ -7,21 +7,33 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @media print {
+        /* Hide everything by default, and hide elements marked as non-printable */
         body * {
           visibility: hidden;
         }
-        .printable-area, .printable-area *,
-        .printable-report, .printable-report * {
+        .no-print {
+          display: none !important;
+        }
+
+        /* Make only the printable area and its children visible */
+        .printable-area, .printable-area * {
           visibility: visible;
         }
-        .printable-area, .printable-report {
+
+        /* Reset layout for the printable area to take over the page */
+        .printable-area {
           position: absolute;
           left: 0;
           top: 0;
           width: 100%;
+          height: auto !important; /* Ensure content is not clipped */
+          overflow: visible !important; /* Ensure all content is visible */
         }
-        .no-print {
-          display: none;
+        
+        /* Ensure parent containers don't hide overflowing content during print */
+        body, #root, main {
+            overflow: visible !important;
+            height: auto !important;
         }
       }
     </style>

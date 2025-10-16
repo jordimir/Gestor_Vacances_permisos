@@ -135,17 +135,12 @@ const RequestModal: React.FC<RequestModalProps> = ({ user, leaveDays, leaveTypes
       }, {} as Record<string, Date[]>);
   }, [leaveDays]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         <header className="p-4 border-b flex justify-between items-center no-print">
           <h2 className="text-xl font-bold">Generador de Sol·licituds (Dies Demanats)</h2>
           <div>
-            <button onClick={handlePrint} className="mr-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Imprimir</button>
             <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">&times;</button>
           </div>
         </header>
