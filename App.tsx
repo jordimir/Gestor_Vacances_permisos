@@ -28,9 +28,15 @@ const App: React.FC = () => {
       const newLeaveDays = { ...prev };
       if (type === null) {
         delete newLeaveDays[date];
-      } else {
-        newLeaveDays[date] = { type, status: 'requested' };
+        return newLeaveDays;
       }
+      
+      // No permetre sobreescriure un dia ja assignat
+      if (prev[date]) {
+        return prev;
+      }
+
+      newLeaveDays[date] = { type, status: 'requested' };
       return newLeaveDays;
     });
   }, []);

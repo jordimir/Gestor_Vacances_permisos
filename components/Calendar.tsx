@@ -37,13 +37,15 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
   const holiday = CATALAN_HOLIDAYS_2025[dateString];
   const isWeekend = getDay(day) === 0 || getDay(day) === 6;
 
-  const [{ isOver }, drop] = useDrop(() => ({
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'LEAVE_TYPE',
+    canDrop: () => !leaveDay, // CORRECCIÓ: `canDrop` ha de ser una funció que retorni un booleà.
     drop: (item: { type: string }) => onSetLeaveDay(dateString, item.type),
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
+      canDrop: !!monitor.canDrop(),
     }),
-  }), [dateString, onSetLeaveDay]);
+  }), [dateString, onSetLeaveDay, leaveDay]);
 
   const leaveInfo = leaveDay ? leaveTypes[leaveDay.type] : null;
 
@@ -54,7 +56,8 @@ const Day: React.FC<{ day: Date; isCurrentMonth: boolean; leaveDay?: LeaveDay; o
       ref={drop}
       className={`relative h-28 border flex flex-col p-2 transition-all duration-200
         ${isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
-        ${isOver ? 'bg-blue-100' : ''}
+        ${isOver && canDrop ? 'bg-blue-100' : ''}
+        ${isOver && !canDrop ? 'bg-red-200 cursor-not-allowed' : ''}
         ${leaveDay ? borderStyle + ' border-2' : 'border-gray-200'}
         ${isSameDay(day, new Date()) && !leaveDay ? 'border-2 border-blue-500' : ''}
       `}
