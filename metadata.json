@@ -1,0 +1,5 @@
+{
+  "name": "Gestor de Vacances i Permisos",
+  "description": "Una aplicació per planificar i gestionar dies de vacances, assumptes personals, ponts i altres permisos amb un calendari interactiu, comptabilitat de dies i generació de sol·licituds.",
+  "requestFramePermissions": []
+}
