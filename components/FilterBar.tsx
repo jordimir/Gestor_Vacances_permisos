@@ -45,7 +45,6 @@ const DropdownMultiSelect: React.FC<{
                     <div className="p-2">
                          <button onClick={() => onChange([])} className="text-xs text-blue-600 hover:underline mb-2">Netejar selecció</button>
                     </div>
-                    {/* FIX: Add explicit types to destructuring assignment from Object.entries to fix type inference issue on `groupOptions`. This resolves error on line 50. */}
                     {Object.entries(groupedOptions).map(([groupName, groupOptions]: [string, { value: string; label: string; group?: string }[]]) => (
                         <div key={groupName}>
                             {groupName !== 'general' && <h4 className="font-bold text-xs uppercase text-gray-500 px-3 pt-2">{groupName}</h4>}
@@ -70,7 +69,6 @@ const DropdownMultiSelect: React.FC<{
 
 
 const FilterBar: React.FC<FilterBarProps> = ({ allUsers, allLeaveTypes, filters, onFilterChange }) => {
-  // FIX: Add explicit types to destructuring assignment from Object.entries to fix type inference issue on `info`. This resolves error on line 73.
   const leaveTypeOptions = useMemo(() => Object.entries(allLeaveTypes).map(([key, info]: [string, LeaveTypeInfo]) => ({
     value: key,
     label: info.label,

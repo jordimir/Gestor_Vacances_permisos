@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo } from 'react';
 import { LeaveTypeInfo } from '../../types';
 
@@ -17,7 +18,6 @@ const TypePieChart: React.FC<TypePieChartProps> = ({ stats, leaveTypes }) => {
     const gradientParts: string[] = [];
     const legend: { label: string; color: string; value: number, percentage: string }[] = [];
 
-    // FIX: Refactor sorting to use destructuring, ensuring correct type inference for numeric comparison. This resolves the arithmetic operation error.
     const sortedStats = (Object.entries(stats) as [string, number][]).sort(([, countA], [, countB]) => countB - countA);
 
     sortedStats.forEach(([type, count]) => {

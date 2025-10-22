@@ -3,16 +3,17 @@ import { UserProfile } from '../types';
 
 interface UserSelectionProps {
   users: UserProfile[];
-  setUsers: React.Dispatch<React.SetStateAction<UserProfile[]>>;
   onUserSelect: (userId: string) => void;
+  onCreateUser: (newUser: { name: string; dni: string; department: string; hireDate: string; }) => void;
+  onDeleteUser: (userId: string) => void;
 }
 
-const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSelect }) => {
+const UserSelection: React.FC<UserSelectionProps> = ({ users, onUserSelect, onCreateUser, onDeleteUser }) => {
   const [newUser, setNewUser] = useState({ name: '', dni: '', department: '', hireDate: '' });
   const [error, setError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateUser = async () => {
+  const handleCreateUser = () => {
     if (!newUser.name || !newUser.dni || !newUser.department || !newUser.hireDate) {
       setError('Tots els camps són obligatoris.');
       return;
@@ -20,47 +21,17 @@ const UserSelection: React.FC<UserSelectionProps> = ({ users, setUsers, onUserSe
     setIsCreating(true);
     setError('');
     
-    try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser),
-      });
+    onCreateUser(newUser);
+    setNewUser({ name: '', dni: '', department: '', hireDate: '' });
 
-      if (!response.ok) {
-        throw new Error('No s\'ha pogut crear l\'usuari');
-      }
-
-      const createdProfile: UserProfile = await response.json();
-      setUsers(prevUsers => [...prevUsers, createdProfile]);
-      setNewUser({ name: '', dni: '', department: '', hireDate: '' });
-      onUserSelect(createdProfile.id);
-
-    } catch (err) {
-      setError('Hi ha hagut un error en crear el perfil. Intenta-ho de nou.');
-      console.error(err);
-    } finally {
-      setIsCreating(false);
-    }
+    setIsCreating(false);
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = (userId: string) => {
       if (!window.confirm("Estàs segur que vols eliminar aquest usuari i totes les seves dades? Aquesta acció no es pot desfer.")) {
         return;
       }
-
-      try {
-        const response = await fetch(`/api/users/${userId}`, {
-            method: 'DELETE',
-        });
-        if (!response.ok) {
-            throw new Error('No s\'ha pogut eliminar l\'usuari');
-        }
-        setUsers(users.filter(u => u.id !== userId));
-      } catch (err) {
-        alert('Hi ha hagut un error en eliminar el perfil.');
-        console.error(err);
-      }
+      onDeleteUser(userId);
   };
 
   return (

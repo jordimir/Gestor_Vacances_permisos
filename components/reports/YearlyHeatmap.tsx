@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { format, startOfYear, addDays, getDay, differenceInCalendarWeeks } from 'date-fns';
 import { ca } from 'date-fns/locale';
@@ -28,18 +26,7 @@ const YearlyHeatmap: React.FC<YearlyHeatmapProps> = ({ year, stats }) => {
     return 'bg-green-800';
   };
   
-  const weekDays = ['Dg', 'Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds'];
   const months = Array.from({ length: 12 }, (_, i) => format(new Date(year, i, 1), 'MMM', { locale: ca }));
-
-  // Calculate grid positions
-  const dayPositions = daysInYear.map(day => {
-      const dayOfWeek = getDay(day); // 0=Sun, 6=Sat
-      const weekOfYear = differenceInCalendarWeeks(day, startDate, { weekStartsOn: 0 });
-      return {
-          gridRow: `${dayOfWeek + 1} / span 1`,
-          gridColumn: `${weekOfYear + 1} / span 1`,
-      };
-  });
   
   return (
     <div className="overflow-x-auto p-1">

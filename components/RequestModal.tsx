@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isSameDay } from 'date-fns';
 import { ca } from 'date-fns/locale';
 import { LeaveDay, LeaveTypeInfo, UserProfile } from '../types';
 
@@ -42,12 +42,6 @@ const groupConsecutiveDays = (dates: Date[]) => {
   }
 
   return groups.join(', ');
-};
-
-const isSameDay = (date1: Date, date2: Date) => {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
 };
 
 const RequestForm: React.FC<{ title: string, dates: Date[], user: UserProfile }> = ({ title, dates, user }) => {

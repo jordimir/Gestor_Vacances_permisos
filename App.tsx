@@ -20,6 +20,8 @@ import { calculatePersonalLeaveDays } from './utils/personalLeaveCalculator';
 
 type ViewMode = 'calendar' | 'timeline' | 'yearGrid' | 'reports';
 
+const API_BASE_URL = '/api';
+
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -32,64 +34,50 @@ const App: React.FC = () => {
   const [isManagingTypes, setIsManagingTypes] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchAllData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [usersRes, userDataRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/usersdata')
-      ]);
-      if (!usersRes.ok || !userDataRes.ok) {
-        throw new Error('Failed to fetch data');
-      }
-      const usersData = await usersRes.json();
-      const allData = await userDataRes.json();
-      
-      setUsers(usersData);
-      setAllUserData(allData);
+  // Load all data from backend API on initial mount
+  useEffect(() => {
+    const loadData = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const [usersRes, userDataRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/users`),
+                fetch(`${API_BASE_URL}/usersdata`),
+            ]);
 
-      // Restore last active user if any
-      const lastActiveId = localStorage.getItem('activeUserId');
-      if (lastActiveId && usersData.some((u: UserProfile) => u.id === lastActiveId)) {
-        setActiveUserId(lastActiveId);
-      }
+            if (!usersRes.ok || !userDataRes.ok) {
+                throw new Error("Failed to fetch data from the server.");
+            }
 
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setIsLoading(false);
-    }
+            const usersData = await usersRes.json();
+            const allData = await userDataRes.json();
+            
+            setUsers(usersData);
+            setAllUserData(allData);
+
+            const lastActiveId = localStorage.getItem('activeUserId');
+            if (lastActiveId && usersData.some((u: UserProfile) => u.id === lastActiveId)) {
+                setActiveUserId(lastActiveId);
+            }
+        } catch (err: any) {
+            console.error("Error loading data from API:", err);
+            setError("No s'han pogut carregar les dades del servidor. Si us plau, refresca la pàgina.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    loadData();
   }, []);
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
 
   const activeUser = useMemo(() => users.find(u => u.id === activeUserId), [users, activeUserId]);
 
   const activeUserData = useMemo(() => {
     if (!activeUserId) return undefined;
-    
-    // Return existing data if available
-    if (allUserData[activeUserId]) {
-        return allUserData[activeUserId];
-    }
-    
-    // Create initial data for a newly created user that might not have data yet
-    if (activeUser) {
-        const initialLeaveTypes = { ...DEFAULT_LEAVE_TYPES };
-        initialLeaveTypes['VACANCES'].total = calculateVacationDays(activeUser.hireDate);
-        initialLeaveTypes['ASSUMPTES_PROPIS'].total = calculatePersonalLeaveDays(activeUser.hireDate);
-
-        return {
-            leaveDays: {},
-            leaveTypes: initialLeaveTypes,
-            workDays: [true, true, true, true, true, false, false],
-        };
-    }
-    return undefined;
-  }, [activeUserId, allUserData, activeUser]);
+    return allUserData[activeUserId];
+  }, [activeUserId, allUserData]);
   
   // Load holidays for the current year
   useEffect(() => {
@@ -125,18 +113,81 @@ const App: React.FC = () => {
       [activeUserId]: updatedUserData,
     }));
 
+    // Persist change to the backend
     try {
-      const response = await fetch(`/api/users/${activeUserId}/data`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUserData),
-      });
-      if (!response.ok) throw new Error('Failed to save data to server');
-    } catch (error) {
-      console.error("Error saving user data, consider reverting state:", error);
-      // Here you could add logic to revert the optimistic update on error
+        const response = await fetch(`${API_BASE_URL}/users/${activeUserId}/data`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUserData)
+        });
+        if (!response.ok) {
+            throw new Error('Failed to save data');
+        }
+    } catch (err) {
+        console.error("Error saving user data:", err);
+        setError("No s'han pogut desar els canvis. Si us plau, torna-ho a provar.");
+        // Revert optimistic update on failure
+        setAllUserData(prevAll => ({ ...prevAll, [activeUserId]: activeUserData }));
     }
   }, [activeUserId, activeUserData]);
+
+  const handleCreateUser = async (newUser: { name: string; dni: string; department: string; hireDate: string; }) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newUser)
+        });
+        if (!response.ok) throw new Error('Failed to create user');
+        
+        const userProfile: UserProfile = await response.json();
+        
+        // Create initial data client-side for optimistic update
+        const initialLeaveTypes = { ...DEFAULT_LEAVE_TYPES };
+        initialLeaveTypes['VACANCES'].total = calculateVacationDays(userProfile.hireDate);
+        initialLeaveTypes['ASSUMPTES_PROPIS'].total = calculatePersonalLeaveDays(userProfile.hireDate);
+        
+        const newUserData: UserData = {
+            leaveDays: {},
+            leaveTypes: initialLeaveTypes,
+            workDays: [true, true, true, true, true, false, false],
+        };
+        
+        setUsers(prev => [...prev, userProfile]);
+        setAllUserData(prev => ({ ...prev, [userProfile.id]: newUserData }));
+        setActiveUserId(userProfile.id);
+      } catch (err) {
+          console.error("Error creating user:", err);
+          setError("No s'ha pogut crear l'usuari.");
+      }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+      // Optimistic update
+      const previousUsers = users;
+      const previousAllUserData = allUserData;
+      
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setAllUserData(prev => {
+          const newState = { ...prev };
+          delete newState[userId];
+          return newState;
+      });
+      if (activeUserId === userId) {
+          setActiveUserId(null);
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete user');
+      } catch (err) {
+          console.error("Error deleting user:", err);
+          setError("No s'ha pogut eliminar l'usuari.");
+          // Revert on failure
+          setUsers(previousUsers);
+          setAllUserData(previousAllUserData);
+      }
+  };
 
   const handleSetLeaveDay = (date: string, type: string | null) => {
     updateActiveUserData(prev => {
@@ -198,12 +249,21 @@ const App: React.FC = () => {
   }
 
   if (!activeUser || !activeUserData) {
-    return <UserSelection users={users} setUsers={setUsers} onUserSelect={handleUserSelect} />;
+    return <UserSelection users={users} onUserSelect={handleUserSelect} onCreateUser={handleCreateUser} onDeleteUser={handleDeleteUser} />;
   }
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex h-screen bg-gray-100 font-sans">
+        {error && (
+          <div className="fixed top-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm" role="alert">
+            <div className="flex justify-between items-center">
+                <p className="font-bold">Error de l'Aplicació</p>
+                <button onClick={() => setError(null)} className="ml-4 font-bold text-xl leading-none">&times;</button>
+            </div>
+            <p className="mt-2 text-sm">{error}</p>
+          </div>
+        )}
         <Sidebar 
           stats={stats} 
           leaveTypes={activeUserData.leaveTypes}

@@ -11,7 +11,7 @@ export const DEFAULT_LEAVE_TYPES: Record<string, LeaveTypeInfo> = {
     label: 'Assumptes Personals',
     color: 'bg-green-500',
     textColor: 'text-white',
-    total: 4,
+    total: 6,
   },
   'PONT': {
     label: 'Pont',
